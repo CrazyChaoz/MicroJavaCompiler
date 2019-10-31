@@ -13,13 +13,6 @@ import static ssw.mj.Token.Kind.*;
 
 public final class ScannerImpl extends Scanner {
 
-	// TODO Exercise 2: implementation of scanner
-
-	final char eofCh = (char) -1;   // Zeichen, das bei eof geliefert wird
-	Reader in;                      // Eingabestrom
-	char ch;                        // naechstes noch unverarbeitetes Zeichen
-	private int line, col;                  // Zeile und Spalte des Zeichens ch
-
 
 	public ScannerImpl(Reader r) {
 		super(r);
@@ -30,19 +23,19 @@ public final class ScannerImpl extends Scanner {
 		in = r;
 		line = 1;
 		col = 0;
-		nextCh(); // liest erstes Zeichen, speichert es in ch und erhöht col auf 1
+		nextCh();
 	}
 
 	private void nextCh() {
 		try {
 			ch = (char) in.read();
 			col++;
-			if (ch == '\n') {
+			if (ch == LF) {
 				line++;
 				col = 0;
 			}
 		} catch (IOException e) {
-			ch = eofCh;
+			ch = EOF;
 		}
 	}
 
@@ -159,9 +152,8 @@ public final class ScannerImpl extends Scanner {
 				nextCh();
 				t.kind = comma;
 				break;
-			case eofCh:
+			case EOF:
 				//#########
-				//why isn't eof in a separate column ????
 				return new Token(eof, line, col - 1);
 				//#########
 
@@ -255,7 +247,7 @@ public final class ScannerImpl extends Scanner {
 //				if (ch == '/') {
 //					do
 //						nextCh();
-//					while (ch != '\n' && ch != eofCh);
+//					while (ch != '\n' && ch != EOF);
 //					t = next(); // call scanner recursively
 //				} else
 				if (ch == '*') {
@@ -283,12 +275,15 @@ public final class ScannerImpl extends Scanner {
 
 		sb.append(ch);
 		nextCh();
-		while (ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '_' || ch == '-') {
+		while (ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '_' /*|| ch == '-'*/) {
 			sb.append(ch);
 			nextCh();
 		}
 
 		t.str = sb.toString();
+
+
+		//short program -> map decleration + map.put == big overhead, code more unreadable (splitting of deceleration, initialisation & usage)
 
 		switch (t.str) {
 			case "break":
@@ -365,7 +360,7 @@ public final class ScannerImpl extends Scanner {
 				break;
 			case '\\':
 				nextCh();
-				///////the best way to only convert '\r','\n','\'' and '\\'
+
 				switch (ch) {
 					case 'r':
 						t.val = '\r';
@@ -389,7 +384,7 @@ public final class ScannerImpl extends Scanner {
 			case '\r':
 				error(t, ILLEGAL_LINE_END);
 				break;
-			case eofCh:
+			case EOF:
 				error(t, MISSING_QUOTE);
 				break;
 			default:
@@ -431,7 +426,7 @@ public final class ScannerImpl extends Scanner {
 						nestedCommentLevel += 1;
 					}
 					break;
-				case eofCh:
+				case EOF:
 					Token t = new Token(eof, line, nestedCommentRememberCol - 1);
 					error(t, EOF_IN_COMMENT);
 					return new Token(eof, line, col - 1);

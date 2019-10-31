@@ -7,15 +7,8 @@ import ssw.mj.Token;
 
 public final class ParserImpl extends Parser {
 
-	private Token t; // zuletzt erkanntes Token
-	private Token la; // look ahead token
-	private Token.Kind sym;
-	private Scanner scanner;
-
-
 	public ParserImpl(Scanner scanner) {
 		super(scanner);
-		this.scanner = scanner;
 	}
 
 	@Override
@@ -26,7 +19,6 @@ public final class ParserImpl extends Parser {
 	}
 
 
-
 	private void scan() {
 		t = la;
 		la = scanner.next();
@@ -34,15 +26,10 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void check(Token.Kind expected) {
-		if (sym == expected) scan(); // erkannt, daher weiterlesen
-		else error(expected.label() + " expected");
+		if (sym == expected) scan();
+		else
+			error(Errors.Message.TOKEN_EXPECTED, expected.label());
 	}
-
-	private void error(String msg) {
-		System.out.println("line " + la.line + ", col " + la.col + ": " + msg);
-		throw new Errors.PanicMode();
-	}
-
 
 	//Helper Methods
 
@@ -103,7 +90,9 @@ public final class ParserImpl extends Parser {
 			scan();
 		} else if (sym == Token.Kind.charConst) {
 			scan();
-		} else error("assignment error (not a number or char const)");
+		} else {
+			error(Errors.Message.CONST_DECL);
+		}
 		check(Token.Kind.semicolon);
 	}
 
@@ -134,7 +123,9 @@ public final class ParserImpl extends Parser {
 		} else if (sym == Token.Kind.ident) {
 			Type();
 			//typed
-		} else error("method type error");
+		} else {
+			error(Errors.Message.METH_DECL);
+		}
 
 		check(Token.Kind.ident);
 		check(Token.Kind.lpar);
@@ -204,6 +195,8 @@ public final class ParserImpl extends Parser {
 					case mminus:
 						scan();
 						break;
+					default:
+						error(Errors.Message.DESIGN_FOLLOW);
 				}
 				check(Token.Kind.semicolon);
 				break;
@@ -213,7 +206,9 @@ public final class ParserImpl extends Parser {
 				Condition();
 				check(Token.Kind.rpar);
 				Statement();
+
 				if (sym == Token.Kind.else_) {
+					scan();
 					Statement();
 				}
 				break;
@@ -269,7 +264,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				error("wrong block opening");
+				error(Errors.Message.INVALID_STAT);
 		}
 	}
 
@@ -354,7 +349,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				error("relational operator (==, !=, >, >=, <, <=) expected");
+				error(Errors.Message.REL_OP);
 		}
 	}
 
@@ -404,7 +399,7 @@ public final class ParserImpl extends Parser {
 				check(Token.Kind.rpar);
 				break;
 			default:
-				error("invalid start of factor: identifier, number, character constant, new or ( expected");
+				error(Errors.Message.INVALID_FACT);
 		}
 
 	}
@@ -432,7 +427,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				error("expected + or -");
+				error(Errors.Message.ADD_OP);
 		}
 	}
 
@@ -448,7 +443,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				error("expected *, / or %");
+				error(Errors.Message.MUL_OP);
 		}
 	}
 
