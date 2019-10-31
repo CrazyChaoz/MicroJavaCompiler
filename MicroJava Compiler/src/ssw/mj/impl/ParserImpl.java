@@ -6,10 +6,25 @@ import ssw.mj.Scanner;
 import ssw.mj.Token;
 
 public final class ParserImpl extends Parser {
+
 	private Token t; // zuletzt erkanntes Token
 	private Token la; // look ahead token
 	private Token.Kind sym;
 	private Scanner scanner;
+
+
+	public ParserImpl(Scanner scanner) {
+		super(scanner);
+		this.scanner = scanner;
+	}
+
+	@Override
+	public void parse() {
+		scan();
+		MicroJava();
+		check(Token.Kind.eof);
+	}
+
 
 
 	private void scan() {
@@ -28,17 +43,32 @@ public final class ParserImpl extends Parser {
 		throw new Errors.PanicMode();
 	}
 
-	public ParserImpl(Scanner scanner) {
-		super(scanner);
-		this.scanner = scanner;
+
+	//Helper Methods
+
+	//TODO: impl set Expr
+	private boolean checkExpr() {
+		return sym == Token.Kind.minus
+				|| sym == Token.Kind.ident
+				|| sym == Token.Kind.number
+				|| sym == Token.Kind.charConst
+				|| sym == Token.Kind.new_
+				|| sym == Token.Kind.lpar;
 	}
 
 
-	@Override
-	public void parse() {
-		scan();
-		MicroJava();
-		check(Token.Kind.eof);
+	//TODO: impl set Statement
+	private boolean checkStatement() {
+		return sym == Token.Kind.ident
+				|| sym == Token.Kind.if_
+				|| sym == Token.Kind.while_
+				|| sym == Token.Kind.break_
+				|| sym == Token.Kind.compare_
+				|| sym == Token.Kind.return_
+				|| sym == Token.Kind.read
+				|| sym == Token.Kind.print
+				|| sym == Token.Kind.lbrace
+				|| sym == Token.Kind.semicolon;
 	}
 
 	private void MicroJava() {
@@ -55,8 +85,6 @@ public final class ParserImpl extends Parser {
 				case ident:
 					VarDecl();
 					break;
-				default:
-					error("error during program decleration (program should not reach this)");
 			}
 		}
 		check(Token.Kind.lbrace);
@@ -75,7 +103,7 @@ public final class ParserImpl extends Parser {
 			scan();
 		} else if (sym == Token.Kind.charConst) {
 			scan();
-		} else error("assignment error");
+		} else error("assignment error (not a number or char const)");
 		check(Token.Kind.semicolon);
 	}
 
@@ -145,17 +173,8 @@ public final class ParserImpl extends Parser {
 
 	private void Block() {
 		check(Token.Kind.lbrace);
-		//TODO: impl set Statement
-		while (sym == Token.Kind.ident
-				|| sym == Token.Kind.if_
-				|| sym == Token.Kind.while_
-				|| sym == Token.Kind.break_
-				|| sym == Token.Kind.compare_
-				|| sym == Token.Kind.return_
-				|| sym == Token.Kind.read
-				|| sym == Token.Kind.print
-				|| sym == Token.Kind.lbrace
-				|| sym == Token.Kind.semicolon)
+
+		while (checkStatement())
 			Statement();
 
 		check(Token.Kind.rbrace);
@@ -222,9 +241,8 @@ public final class ParserImpl extends Parser {
 				break;
 			case return_:
 				scan();
-				//TODO: impl set Expr
-				//if(Expr)
-				//Expr();
+				if (checkExpr())
+					Expr();
 				check(Token.Kind.semicolon);
 				break;
 			case read:
@@ -283,14 +301,13 @@ public final class ParserImpl extends Parser {
 
 	private void ActPars() {
 		check(Token.Kind.lpar);
-		//TODO: impl set Expr
-//		if(Expr){
-//		Expr();
-//		while (sym == Token.Kind.comma) {
-//			scan();
-//			Expr();
-//		}
-//		}
+		if (checkExpr()) {
+			Expr();
+			while (sym == Token.Kind.comma) {
+				scan();
+				Expr();
+			}
+		}
 		check(Token.Kind.rpar);
 	}
 
@@ -337,7 +354,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				throw new Errors.PanicMode();
+				error("relational operator (==, !=, >, >=, <, <=) expected");
 		}
 	}
 
@@ -415,7 +432,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				error("ADDOP");
+				error("expected + or -");
 		}
 	}
 
@@ -431,7 +448,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				throw new Errors.PanicMode();
+				error("expected *, / or %");
 		}
 	}
 
