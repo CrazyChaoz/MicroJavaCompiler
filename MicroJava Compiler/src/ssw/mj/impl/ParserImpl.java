@@ -7,6 +7,8 @@ import ssw.mj.Token;
 
 public final class ParserImpl extends Parser {
 
+	private int errDist = 3;
+
 	public ParserImpl(Scanner scanner) {
 		super(scanner);
 	}
@@ -23,12 +25,23 @@ public final class ParserImpl extends Parser {
 		t = la;
 		la = scanner.next();
 		sym = la.kind;
+
+		errDist++;
 	}
 
 	private void check(Token.Kind expected) {
 		if (sym == expected) scan();
 		else
 			error(Errors.Message.TOKEN_EXPECTED, expected.label());
+	}
+
+	@Override
+	public void error(Errors.Message msg, Object... msgParams) {
+		if (errDist >= 3) {
+			scanner.errors.error(la.line, la.col, msg, msgParams);
+		}
+
+		errDist = 0;
 	}
 
 	//Helper Methods
@@ -172,6 +185,14 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void Statement() {
+		if (!checkStatement()) {
+			error(Errors.Message.INVALID_STAT);
+			while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.eof) {
+				scan();
+			}
+			errDist = 0;
+		}
+
 		switch (sym) {
 			case ident:
 				//Designator ( Assignop Expr | ActPars | "++" | "--" ) ";"
@@ -263,8 +284,6 @@ public final class ParserImpl extends Parser {
 			case semicolon:
 				scan();
 				break;
-			default:
-				error(Errors.Message.INVALID_STAT);
 		}
 	}
 
