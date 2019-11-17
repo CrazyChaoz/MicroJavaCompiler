@@ -4,6 +4,9 @@ import ssw.mj.Errors;
 import ssw.mj.Parser;
 import ssw.mj.Scanner;
 import ssw.mj.Token;
+import ssw.mj.symtab.Obj;
+import ssw.mj.symtab.Struct;
+import ssw.mj.symtab.Tab;
 
 public final class ParserImpl extends Parser {
 
@@ -30,9 +33,11 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void check(Token.Kind expected) {
-		if (sym == expected) scan();
-		else
+		if (sym == expected) {
+			scan();
+		} else {
 			error(Errors.Message.TOKEN_EXPECTED, expected.label());
+		}
 	}
 
 	@Override
@@ -40,7 +45,6 @@ public final class ParserImpl extends Parser {
 		if (errDist >= 3) {
 			scanner.errors.error(la.line, la.col, msg, msgParams);
 		}
-
 		errDist = 0;
 	}
 
@@ -71,9 +75,23 @@ public final class ParserImpl extends Parser {
 				|| sym == Token.Kind.semicolon;
 	}
 
+	private void recoverStat() {
+		error(Errors.Message.INVALID_STAT);
+		while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.eof) {
+			scan();
+		}
+		errDist = 0;
+	}
+
+	private void recoverDecl() {
+		error(Errors.Message.INVALID_DECL);
+	}
+
 	private void MicroJava() {
 		check(Token.Kind.program);
 		check(Token.Kind.ident);
+		Obj prog=tab.insert(Obj.Kind.Prog, t.str, Tab.noType);
+		tab.openScope();
 		while (sym == Token.Kind.final_ || sym == Token.Kind.class_ || sym == Token.Kind.ident) {
 			switch (sym) {
 				case final_:
@@ -91,30 +109,43 @@ public final class ParserImpl extends Parser {
 		while (sym == Token.Kind.ident || sym == Token.Kind.void_) {
 			MethodDecl();
 		}
+		prog.locals=tab.curScope.locals();
+		tab.closeScope();
 		check(Token.Kind.rbrace);
 	}
 
 	private void ConstDecl() {
 		check(Token.Kind.final_);
-		Type();
+		StructImpl type=Type();
 		check(Token.Kind.ident);
+		Obj con=new Obj(Obj.Kind.Con,t.str,type);
+
 		check(Token.Kind.assign);
 		if (sym == Token.Kind.number) {
+			if(!type.kind.equals(Tab.intType.kind))
+				error(Errors.Message.CONST_TYPE);
 			scan();
+			con.val=t.val;
 		} else if (sym == Token.Kind.charConst) {
+			if(!type.kind.equals(Tab.charType.kind))
+				error(Errors.Message.CONST_TYPE);
 			scan();
+			con.val=t.val;
 		} else {
 			error(Errors.Message.CONST_DECL);
 		}
+		tab.curScope.insert(con);
 		check(Token.Kind.semicolon);
 	}
 
 	private void VarDecl() {
-		Type();
+		StructImpl type = Type();
 		check(Token.Kind.ident);
+		tab.insert(Obj.Kind.Var, t.str, type);
 		while (sym == Token.Kind.comma) {
 			scan();
 			check(Token.Kind.ident);
+			tab.insert(Obj.Kind.Var, t.str, type);
 		}
 		check(Token.Kind.semicolon);
 	}
@@ -122,57 +153,108 @@ public final class ParserImpl extends Parser {
 	private void ClassDecl() {
 		check(Token.Kind.class_);
 		check(Token.Kind.ident);
+		Obj clazz = tab.insert(Obj.Kind.Type, t.str,new StructImpl(Struct.Kind.Class));
 		check(Token.Kind.lbrace);
+		tab.openScope();
 		while (sym == Token.Kind.ident) {
 			VarDecl();
+			if (t.kind != Token.Kind.semicolon)
+				recoverDecl();
 		}
+
+//		System.out.println("nvars = " + tab.curScope.nVars());
+//		System.out.println("maxfields = " + MAX_FIELDS);
+
+		if (tab.curScope.nVars() > MAX_FIELDS) {
+			error(Errors.Message.TOO_MANY_FIELDS);
+		}
+		clazz.type.fields = tab.curScope.locals();
+		tab.closeScope();
 		check(Token.Kind.rbrace);
 	}
 
-	private void MethodDecl() {
+	private Obj MethodDecl() {
+		StructImpl type = Tab.noType;
 		if (sym == Token.Kind.void_) {
 			scan();
+			type=Tab.noType;
 			//void method -> no return
 		} else if (sym == Token.Kind.ident) {
-			Type();
+			type = Type();
 			//typed
 		} else {
 			error(Errors.Message.METH_DECL);
 		}
 
 		check(Token.Kind.ident);
+		Obj meth = tab.insert(Obj.Kind.Meth, t.str, type);
+		meth.adr = code.pc;
 		check(Token.Kind.lpar);
+
+
+		tab.openScope();
+
 
 		if (sym == Token.Kind.ident)
 			FormPars();
 
-		check(Token.Kind.rpar);
+		meth.nPars = tab.curScope.nVars();
 
+		check(Token.Kind.rpar);
+		if (meth.name.equals("main")) {
+			if (meth.nPars != 0) {
+				error(Errors.Message.MAIN_WITH_PARAMS);
+			}
+		}
 		while (sym == Token.Kind.ident) {
 			VarDecl();
+			if (t.kind != Token.Kind.semicolon)
+				recoverDecl();
 		}
 
+		if (tab.curScope.nVars() > MAX_LOCALS) {
+			error(Errors.Message.TOO_MANY_LOCALS);
+		}
+
+		meth.locals=tab.curScope.locals();
+
 		Block();
+
+		tab.closeScope();
+
+		return meth;
 	}
 
 	private void FormPars() {
-		Type();
+		StructImpl type = Type();
 		check(Token.Kind.ident);
+		tab.curScope.insert(new Obj(Obj.Kind.Var, t.str, type));
 		while (sym == Token.Kind.comma) {
 			scan();
-			Type();
+			type = Type();
 			check(Token.Kind.ident);
+
+			tab.curScope.insert(new Obj(Obj.Kind.Var, t.str, type));
 		}
 
 	}
 
-	private void Type() {
+	private StructImpl Type() {
 		check(Token.Kind.ident);
+		Obj o = tab.find(t.str);
+		if (o.kind != Obj.Kind.Type) {
+			error(Errors.Message.NOT_FOUND,"type");
+		}
+		StructImpl type = o.type;
+
 		if (sym == Token.Kind.lbrack) {
 			scan();
+			//retval is array type
 			check(Token.Kind.rbrack);
+			type = new StructImpl(type);
 		}
 
+		return type;
 	}
 
 	private void Block() {
@@ -184,13 +266,10 @@ public final class ParserImpl extends Parser {
 		check(Token.Kind.rbrace);
 	}
 
+
 	private void Statement() {
 		if (!checkStatement()) {
-			error(Errors.Message.INVALID_STAT);
-			while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.eof) {
-				scan();
-			}
-			errDist = 0;
+			recoverStat();
 		}
 
 		switch (sym) {
