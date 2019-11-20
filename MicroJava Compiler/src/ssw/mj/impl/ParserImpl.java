@@ -77,7 +77,7 @@ public final class ParserImpl extends Parser {
 
 	private void recoverStat() {
 		error(Errors.Message.INVALID_STAT);
-		while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.eof) {
+		while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.rbrace && sym != Token.Kind.eof) {
 			scan();
 		}
 		errDist = 0;
@@ -85,12 +85,17 @@ public final class ParserImpl extends Parser {
 
 	private void recoverDecl() {
 		error(Errors.Message.INVALID_DECL);
+		//follow: rbrace
+		while ((sym == Token.Kind.rbrace || sym == Token.Kind.lbrace) && sym != Token.Kind.eof) {
+			scan();
+		}
+		errDist = 0;
 	}
 
 	private void MicroJava() {
 		check(Token.Kind.program);
 		check(Token.Kind.ident);
-		Obj prog=tab.insert(Obj.Kind.Prog, t.str, Tab.noType);
+		Obj prog = tab.insert(Obj.Kind.Prog, t.str, Tab.noType);
 		tab.openScope();
 		while (sym == Token.Kind.final_ || sym == Token.Kind.class_ || sym == Token.Kind.ident) {
 			switch (sym) {
@@ -105,32 +110,37 @@ public final class ParserImpl extends Parser {
 					break;
 			}
 		}
+
+		if (tab.curScope.nVars() > MAX_GLOBALS) {
+			error(Errors.Message.TOO_MANY_GLOBALS);
+		}
+
 		check(Token.Kind.lbrace);
 		while (sym == Token.Kind.ident || sym == Token.Kind.void_) {
 			MethodDecl();
 		}
-		prog.locals=tab.curScope.locals();
+		prog.locals = tab.curScope.locals();
 		tab.closeScope();
 		check(Token.Kind.rbrace);
 	}
 
 	private void ConstDecl() {
 		check(Token.Kind.final_);
-		StructImpl type=Type();
+		StructImpl type = Type();
 		check(Token.Kind.ident);
-		Obj con=new Obj(Obj.Kind.Con,t.str,type);
+		Obj con = new Obj(Obj.Kind.Con, t.str, type);
 
 		check(Token.Kind.assign);
 		if (sym == Token.Kind.number) {
-			if(!type.kind.equals(Tab.intType.kind))
+			if (!type.kind.equals(Tab.intType.kind))
 				error(Errors.Message.CONST_TYPE);
 			scan();
-			con.val=t.val;
+			con.val = t.val;
 		} else if (sym == Token.Kind.charConst) {
-			if(!type.kind.equals(Tab.charType.kind))
+			if (!type.kind.equals(Tab.charType.kind))
 				error(Errors.Message.CONST_TYPE);
 			scan();
-			con.val=t.val;
+			con.val = t.val;
 		} else {
 			error(Errors.Message.CONST_DECL);
 		}
@@ -153,7 +163,7 @@ public final class ParserImpl extends Parser {
 	private void ClassDecl() {
 		check(Token.Kind.class_);
 		check(Token.Kind.ident);
-		Obj clazz = tab.insert(Obj.Kind.Type, t.str,new StructImpl(Struct.Kind.Class));
+		Obj clazz = tab.insert(Obj.Kind.Type, t.str, new StructImpl(Struct.Kind.Class));
 		check(Token.Kind.lbrace);
 		tab.openScope();
 		while (sym == Token.Kind.ident) {
@@ -177,7 +187,7 @@ public final class ParserImpl extends Parser {
 		StructImpl type = Tab.noType;
 		if (sym == Token.Kind.void_) {
 			scan();
-			type=Tab.noType;
+			type = Tab.noType;
 			//void method -> no return
 		} else if (sym == Token.Kind.ident) {
 			type = Type();
@@ -189,6 +199,7 @@ public final class ParserImpl extends Parser {
 		check(Token.Kind.ident);
 		Obj meth = tab.insert(Obj.Kind.Meth, t.str, type);
 		meth.adr = code.pc;
+
 		check(Token.Kind.lpar);
 
 
@@ -205,6 +216,10 @@ public final class ParserImpl extends Parser {
 			if (meth.nPars != 0) {
 				error(Errors.Message.MAIN_WITH_PARAMS);
 			}
+
+			if (!meth.type.equals(Tab.noType)) {
+				error(Errors.Message.MAIN_NOT_VOID);
+			}
 		}
 		while (sym == Token.Kind.ident) {
 			VarDecl();
@@ -216,7 +231,7 @@ public final class ParserImpl extends Parser {
 			error(Errors.Message.TOO_MANY_LOCALS);
 		}
 
-		meth.locals=tab.curScope.locals();
+		meth.locals = tab.curScope.locals();
 
 		Block();
 
@@ -228,22 +243,25 @@ public final class ParserImpl extends Parser {
 	private void FormPars() {
 		StructImpl type = Type();
 		check(Token.Kind.ident);
-		tab.curScope.insert(new Obj(Obj.Kind.Var, t.str, type));
+		tab.insert(Obj.Kind.Var, t.str, type);
 		while (sym == Token.Kind.comma) {
 			scan();
 			type = Type();
 			check(Token.Kind.ident);
 
-			tab.curScope.insert(new Obj(Obj.Kind.Var, t.str, type));
+			tab.insert(Obj.Kind.Var, t.str, type);
 		}
-
 	}
 
 	private StructImpl Type() {
 		check(Token.Kind.ident);
 		Obj o = tab.find(t.str);
 		if (o.kind != Obj.Kind.Type) {
-			error(Errors.Message.NOT_FOUND,"type");
+			if (o == tab.noObj) {
+				error(Errors.Message.NOT_FOUND, "type");
+			} else {
+				error(Errors.Message.NO_TYPE);
+			}
 		}
 		StructImpl type = o.type;
 
