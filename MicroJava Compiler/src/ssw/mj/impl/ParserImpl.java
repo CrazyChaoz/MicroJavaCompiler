@@ -84,9 +84,8 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void recoverDecl() {
-		error(Errors.Message.INVALID_DECL);
-		//follow: rbrace
-		while ((sym == Token.Kind.rbrace || sym == Token.Kind.lbrace) && sym != Token.Kind.eof) {
+		//follow: rbrace, block, lpar, ident
+		while (/*sym!=Token.Kind.ident &&*/ sym != Token.Kind.eof) {
 			scan();
 		}
 		errDist = 0;
@@ -119,6 +118,11 @@ public final class ParserImpl extends Parser {
 		while (sym == Token.Kind.ident || sym == Token.Kind.void_) {
 			MethodDecl();
 		}
+		if(sym!= Token.Kind.rbrace) {
+			error(Errors.Message.INVALID_DECL);
+			recoverDecl();
+		}
+
 		prog.locals = tab.curScope.locals();
 		tab.closeScope();
 		check(Token.Kind.rbrace);
@@ -185,15 +189,18 @@ public final class ParserImpl extends Parser {
 
 	private Obj MethodDecl() {
 		StructImpl type = Tab.noType;
-		if (sym == Token.Kind.void_) {
-			scan();
-			type = Tab.noType;
-			//void method -> no return
-		} else if (sym == Token.Kind.ident) {
-			type = Type();
-			//typed
+
+		if (sym == Token.Kind.void_ || sym == Token.Kind.ident) {
+			if (sym == Token.Kind.void_) {
+				scan();
+				type = Tab.noType;
+				//void method -> no return
+			} else {
+				type = Type();
+				//typed
+			}
 		} else {
-			error(Errors.Message.METH_DECL);
+			recoverDecl();
 		}
 
 		check(Token.Kind.ident);
