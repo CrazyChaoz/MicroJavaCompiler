@@ -77,15 +77,29 @@ public final class ParserImpl extends Parser {
 
 	private void recoverStat() {
 		error(Errors.Message.INVALID_STAT);
-		while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.rbrace && sym != Token.Kind.eof) {
+
+		while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.rbrace && sym != Token.Kind.semicolon && sym != Token.Kind.eof) {
 			scan();
 		}
 		errDist = 0;
 	}
 
-	private void recoverDecl() {
-		//follow: rbrace, block, lpar, ident
-		while (/*sym!=Token.Kind.ident &&*/ sym != Token.Kind.eof) {
+	private void recoverTillRBrace() {
+		while (sym != Token.Kind.rbrace && sym != Token.Kind.eof) {
+			scan();
+		}
+		errDist = 0;
+	}
+
+	private void recoverAfterMessedUpVarDecl() {
+		while (t.kind != Token.Kind.semicolon && sym != Token.Kind.eof) {
+			scan();
+		}
+		errDist = 0;
+	}
+
+	private void recoverTillLBrace() {
+		while (sym != Token.Kind.lbrace && sym != Token.Kind.eof) {
 			scan();
 		}
 		errDist = 0;
@@ -109,20 +123,19 @@ public final class ParserImpl extends Parser {
 					break;
 			}
 		}
+		if (sym != Token.Kind.lbrace) {
+			error(Errors.Message.INVALID_DECL);
+			recoverTillLBrace();
+		}
 
 		if (tab.curScope.nVars() > MAX_GLOBALS) {
 			error(Errors.Message.TOO_MANY_GLOBALS);
 		}
 
 		check(Token.Kind.lbrace);
-		while (sym == Token.Kind.ident || sym == Token.Kind.void_) {
+		while (sym != Token.Kind.rbrace && sym != Token.Kind.eof && t.kind != Token.Kind.eof) {
 			MethodDecl();
 		}
-		if(sym!= Token.Kind.rbrace) {
-			error(Errors.Message.INVALID_DECL);
-			recoverDecl();
-		}
-
 		prog.locals = tab.curScope.locals();
 		tab.closeScope();
 		check(Token.Kind.rbrace);
@@ -136,13 +149,15 @@ public final class ParserImpl extends Parser {
 
 		check(Token.Kind.assign);
 		if (sym == Token.Kind.number) {
-			if (!type.kind.equals(Tab.intType.kind))
+			if (!type.kind.equals(Tab.intType.kind)) {
 				error(Errors.Message.CONST_TYPE);
+			}
 			scan();
 			con.val = t.val;
 		} else if (sym == Token.Kind.charConst) {
-			if (!type.kind.equals(Tab.charType.kind))
+			if (!type.kind.equals(Tab.charType.kind)) {
 				error(Errors.Message.CONST_TYPE);
+			}
 			scan();
 			con.val = t.val;
 		} else {
@@ -172,16 +187,15 @@ public final class ParserImpl extends Parser {
 		tab.openScope();
 		while (sym == Token.Kind.ident) {
 			VarDecl();
-			if (t.kind != Token.Kind.semicolon)
-				recoverDecl();
 		}
-
-//		System.out.println("nvars = " + tab.curScope.nVars());
-//		System.out.println("maxfields = " + MAX_FIELDS);
+		if (t.kind != Token.Kind.semicolon) {
+			recoverAfterMessedUpVarDecl();
+		}
 
 		if (tab.curScope.nVars() > MAX_FIELDS) {
 			error(Errors.Message.TOO_MANY_FIELDS);
 		}
+
 		clazz.type.fields = tab.curScope.locals();
 		tab.closeScope();
 		check(Token.Kind.rbrace);
@@ -194,13 +208,14 @@ public final class ParserImpl extends Parser {
 			if (sym == Token.Kind.void_) {
 				scan();
 				type = Tab.noType;
-				//void method -> no return
 			} else {
 				type = Type();
-				//typed
 			}
 		} else {
-			recoverDecl();
+			error(Errors.Message.METH_DECL);
+			recoverTillRBrace();
+			scan();
+			return tab.noObj;
 		}
 
 		check(Token.Kind.ident);
@@ -217,8 +232,9 @@ public final class ParserImpl extends Parser {
 			FormPars();
 
 		meth.nPars = tab.curScope.nVars();
-
 		check(Token.Kind.rpar);
+
+
 		if (meth.name.equals("main")) {
 			if (meth.nPars != 0) {
 				error(Errors.Message.MAIN_WITH_PARAMS);
@@ -228,11 +244,14 @@ public final class ParserImpl extends Parser {
 				error(Errors.Message.MAIN_NOT_VOID);
 			}
 		}
+
+
 		while (sym == Token.Kind.ident) {
 			VarDecl();
 			if (t.kind != Token.Kind.semicolon)
-				recoverDecl();
+				recoverAfterMessedUpVarDecl();
 		}
+
 
 		if (tab.curScope.nVars() > MAX_LOCALS) {
 			error(Errors.Message.TOO_MANY_LOCALS);
@@ -283,10 +302,13 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void Block() {
+
 		check(Token.Kind.lbrace);
 
-		while (checkStatement())
-			Statement();
+		if (t.kind == Token.Kind.lbrace)
+			while (sym != Token.Kind.eof && sym != Token.Kind.rbrace)
+				Statement();
+
 
 		check(Token.Kind.rbrace);
 	}

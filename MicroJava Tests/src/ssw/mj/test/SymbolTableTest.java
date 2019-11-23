@@ -1201,4 +1201,5 @@ public class SymbolTableTest extends CompilerTestCaseSupport {
 		expectError(3, 20, Message.MAIN_WITH_PARAMS);
 		parseAndVerify();
 	}
+
 }
