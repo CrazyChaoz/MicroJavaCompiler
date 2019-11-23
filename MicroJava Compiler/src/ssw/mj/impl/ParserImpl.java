@@ -8,13 +8,31 @@ import ssw.mj.symtab.Obj;
 import ssw.mj.symtab.Struct;
 import ssw.mj.symtab.Tab;
 
+import java.util.EnumSet;
+
+
+
+/**
+ * Disclaimer
+ *
+ * This code is awfully ugly, because I stopped worrying and started loving the Trial&Error approach
+ *
+ * Please feel free to tell me <EVERYTHING> that doesn't look liked it is supposed to be.
+ *
+ *
+ * */
 public final class ParserImpl extends Parser {
 
 	private int errDist = 3;
 
+	private EnumSet<Token.Kind> exprSet = EnumSet.of(Token.Kind.minus, Token.Kind.ident, Token.Kind.number, Token.Kind.charConst, Token.Kind.new_, Token.Kind.lpar);
+	private EnumSet<Token.Kind> statementSet = EnumSet.of(Token.Kind.ident, Token.Kind.if_, Token.Kind.while_,Token.Kind.break_,Token.Kind.compare_,Token.Kind.return_,Token.Kind.read,Token.Kind.print,Token.Kind.lbrace,Token.Kind.semicolon);
+
+
 	public ParserImpl(Scanner scanner) {
 		super(scanner);
 	}
+
 
 	@Override
 	public void parse() {
@@ -40,6 +58,17 @@ public final class ParserImpl extends Parser {
 		}
 	}
 
+	private boolean checkExpr() {
+		return exprSet.contains(sym);
+	}
+
+
+	private boolean checkStatement() {
+		return statementSet.contains(sym);
+	}
+
+
+
 	@Override
 	public void error(Errors.Message msg, Object... msgParams) {
 		if (errDist >= 3) {
@@ -48,32 +77,7 @@ public final class ParserImpl extends Parser {
 		errDist = 0;
 	}
 
-	//Helper Methods
 
-	//TODO: impl set Expr
-	private boolean checkExpr() {
-		return sym == Token.Kind.minus
-				|| sym == Token.Kind.ident
-				|| sym == Token.Kind.number
-				|| sym == Token.Kind.charConst
-				|| sym == Token.Kind.new_
-				|| sym == Token.Kind.lpar;
-	}
-
-
-	//TODO: impl set Statement
-	private boolean checkStatement() {
-		return sym == Token.Kind.ident
-				|| sym == Token.Kind.if_
-				|| sym == Token.Kind.while_
-				|| sym == Token.Kind.break_
-				|| sym == Token.Kind.compare_
-				|| sym == Token.Kind.return_
-				|| sym == Token.Kind.read
-				|| sym == Token.Kind.print
-				|| sym == Token.Kind.lbrace
-				|| sym == Token.Kind.semicolon;
-	}
 
 	private void recoverStat() {
 		error(Errors.Message.INVALID_STAT);
@@ -123,21 +127,28 @@ public final class ParserImpl extends Parser {
 					break;
 			}
 		}
-		if (sym != Token.Kind.lbrace) {
-			error(Errors.Message.INVALID_DECL);
-			recoverTillLBrace();
-		}
+
 
 		if (tab.curScope.nVars() > MAX_GLOBALS) {
 			error(Errors.Message.TOO_MANY_GLOBALS);
 		}
 
+
+		if (sym != Token.Kind.lbrace) {
+			error(Errors.Message.INVALID_DECL);
+			recoverTillLBrace();
+		}
+
+
 		check(Token.Kind.lbrace);
+
 		while (sym != Token.Kind.rbrace && sym != Token.Kind.eof && t.kind != Token.Kind.eof) {
 			MethodDecl();
 		}
+
 		prog.locals = tab.curScope.locals();
 		tab.closeScope();
+
 		check(Token.Kind.rbrace);
 	}
 
@@ -146,7 +157,6 @@ public final class ParserImpl extends Parser {
 		StructImpl type = Type();
 		check(Token.Kind.ident);
 		Obj con = new Obj(Obj.Kind.Con, t.str, type);
-
 		check(Token.Kind.assign);
 		if (sym == Token.Kind.number) {
 			if (!type.kind.equals(Tab.intType.kind)) {
@@ -191,19 +201,16 @@ public final class ParserImpl extends Parser {
 		if (t.kind != Token.Kind.semicolon) {
 			recoverAfterMessedUpVarDecl();
 		}
-
 		if (tab.curScope.nVars() > MAX_FIELDS) {
 			error(Errors.Message.TOO_MANY_FIELDS);
 		}
-
 		clazz.type.fields = tab.curScope.locals();
 		tab.closeScope();
 		check(Token.Kind.rbrace);
 	}
 
 	private Obj MethodDecl() {
-		StructImpl type = Tab.noType;
-
+		StructImpl type;
 		if (sym == Token.Kind.void_ || sym == Token.Kind.ident) {
 			if (sym == Token.Kind.void_) {
 				scan();
@@ -217,48 +224,35 @@ public final class ParserImpl extends Parser {
 			scan();
 			return tab.noObj;
 		}
-
 		check(Token.Kind.ident);
 		Obj meth = tab.insert(Obj.Kind.Meth, t.str, type);
 		meth.adr = code.pc;
-
 		check(Token.Kind.lpar);
-
 
 		tab.openScope();
 
-
-		if (sym == Token.Kind.ident)
+		if (sym == Token.Kind.ident) {
 			FormPars();
-
+		}
 		meth.nPars = tab.curScope.nVars();
 		check(Token.Kind.rpar);
-
-
 		if (meth.name.equals("main")) {
 			if (meth.nPars != 0) {
 				error(Errors.Message.MAIN_WITH_PARAMS);
 			}
-
 			if (!meth.type.equals(Tab.noType)) {
 				error(Errors.Message.MAIN_NOT_VOID);
 			}
 		}
-
-
 		while (sym == Token.Kind.ident) {
 			VarDecl();
 			if (t.kind != Token.Kind.semicolon)
 				recoverAfterMessedUpVarDecl();
 		}
-
-
 		if (tab.curScope.nVars() > MAX_LOCALS) {
 			error(Errors.Message.TOO_MANY_LOCALS);
 		}
-
 		meth.locals = tab.curScope.locals();
-
 		Block();
 
 		tab.closeScope();
@@ -268,20 +262,24 @@ public final class ParserImpl extends Parser {
 
 	private void FormPars() {
 		StructImpl type = Type();
+
 		check(Token.Kind.ident);
+
 		tab.insert(Obj.Kind.Var, t.str, type);
+
 		while (sym == Token.Kind.comma) {
 			scan();
 			type = Type();
 			check(Token.Kind.ident);
-
 			tab.insert(Obj.Kind.Var, t.str, type);
 		}
 	}
 
 	private StructImpl Type() {
 		check(Token.Kind.ident);
+
 		Obj o = tab.find(t.str);
+
 		if (o.kind != Obj.Kind.Type) {
 			if (o == tab.noObj) {
 				error(Errors.Message.NOT_FOUND, "type");
@@ -289,6 +287,7 @@ public final class ParserImpl extends Parser {
 				error(Errors.Message.NO_TYPE);
 			}
 		}
+
 		StructImpl type = o.type;
 
 		if (sym == Token.Kind.lbrack) {
@@ -302,23 +301,21 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void Block() {
-
 		check(Token.Kind.lbrace);
 
-		if (t.kind == Token.Kind.lbrace)
-			while (sym != Token.Kind.eof && sym != Token.Kind.rbrace)
+		if (t.kind == Token.Kind.lbrace) {
+			while (sym != Token.Kind.eof && sym != Token.Kind.rbrace) {
 				Statement();
-
+			}
+		}
 
 		check(Token.Kind.rbrace);
 	}
-
 
 	private void Statement() {
 		if (!checkStatement()) {
 			recoverStat();
 		}
-
 		switch (sym) {
 			case ident:
 				//Designator ( Assignop Expr | ActPars | "++" | "--" ) ";"
