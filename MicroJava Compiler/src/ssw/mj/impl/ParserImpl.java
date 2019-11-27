@@ -17,6 +17,7 @@ import java.util.EnumSet;
  *
  * This code is awfully ugly, because I stopped worrying and started loving the Trial&Error approach
  *
+ *
  * Please feel free to tell me <EVERYTHING> that doesn't look liked it is supposed to be.
  *
  *
@@ -431,7 +432,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			default:
-				throw new Errors.PanicMode();
+				error(Errors.Message.ASSIGN_OP);
 
 		}
 	}
