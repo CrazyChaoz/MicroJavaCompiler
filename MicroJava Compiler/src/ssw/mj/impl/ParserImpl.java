@@ -335,7 +335,7 @@ public final class ParserImpl extends Parser {
 					case assign:
 						scan();
 						Operand yass = Expr();
-//						code.assign(x, yass);
+						code.assign(x, yass);
 						break;
 					case lpar:
 						ActPars();
