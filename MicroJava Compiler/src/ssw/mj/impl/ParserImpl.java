@@ -4,6 +4,8 @@ import ssw.mj.Errors;
 import ssw.mj.Parser;
 import ssw.mj.Scanner;
 import ssw.mj.Token;
+import ssw.mj.codegen.Code;
+import ssw.mj.codegen.Operand;
 import ssw.mj.symtab.Obj;
 import ssw.mj.symtab.Struct;
 import ssw.mj.symtab.Tab;
@@ -11,23 +13,20 @@ import ssw.mj.symtab.Tab;
 import java.util.EnumSet;
 
 
-
 /**
  * Disclaimer
- *
+ * <p>
  * This code is awfully ugly, because I stopped worrying and started loving the Trial&Error approach
- *
- *
+ * <p>
+ * <p>
  * Please feel free to tell me <EVERYTHING> that doesn't look liked it is supposed to be.
- *
- *
- * */
+ */
 public final class ParserImpl extends Parser {
 
 	private int errDist = 3;
 
 	private EnumSet<Token.Kind> exprSet = EnumSet.of(Token.Kind.minus, Token.Kind.ident, Token.Kind.number, Token.Kind.charConst, Token.Kind.new_, Token.Kind.lpar);
-	private EnumSet<Token.Kind> statementSet = EnumSet.of(Token.Kind.ident, Token.Kind.if_, Token.Kind.while_,Token.Kind.break_,Token.Kind.compare_,Token.Kind.return_,Token.Kind.read,Token.Kind.print,Token.Kind.lbrace,Token.Kind.semicolon);
+	private EnumSet<Token.Kind> statementSet = EnumSet.of(Token.Kind.ident, Token.Kind.if_, Token.Kind.while_, Token.Kind.break_, Token.Kind.compare_, Token.Kind.return_, Token.Kind.read, Token.Kind.print, Token.Kind.lbrace, Token.Kind.semicolon);
 
 
 	public ParserImpl(Scanner scanner) {
@@ -69,7 +68,6 @@ public final class ParserImpl extends Parser {
 	}
 
 
-
 	@Override
 	public void error(Errors.Message msg, Object... msgParams) {
 		if (errDist >= 3) {
@@ -77,7 +75,6 @@ public final class ParserImpl extends Parser {
 		}
 		errDist = 0;
 	}
-
 
 
 	private void recoverStat() {
@@ -320,16 +317,25 @@ public final class ParserImpl extends Parser {
 		switch (sym) {
 			case ident:
 				//Designator ( Assignop Expr | ActPars | "++" | "--" ) ";"
-				Designator();
+				Operand x = Designator();
 				switch (sym) {
-					case assign:
 					case plusas:
 					case minusas:
 					case timesas:
 					case slashas:
 					case remas:
-						Assignop();
-						Expr();
+						Code.OpCode code_ = SpecialAssignmentStuff();
+						code.load(x);
+						Operand y = Expr();
+						code.load(y);
+						code.put(code_);
+						code.assign(x, y);
+						break;
+
+					case assign:
+						scan();
+						Operand yass = Expr();
+//						code.assign(x, yass);
 						break;
 					case lpar:
 						ActPars();
@@ -411,29 +417,26 @@ public final class ParserImpl extends Parser {
 		}
 	}
 
-	private void Assignop() {
+	private Code.OpCode SpecialAssignmentStuff() {
 		switch (sym) {
-			case assign:
-				scan();
-				break;
 			case plusas:
 				scan();
-				break;
+				return Code.OpCode.add;
 			case minusas:
 				scan();
-				break;
+				return Code.OpCode.sub;
 			case timesas:
 				scan();
-				break;
+				return Code.OpCode.mul;
 			case slashas:
 				scan();
-				break;
+				return Code.OpCode.div;
 			case remas:
 				scan();
-				break;
+				return Code.OpCode.rem;
 			default:
 				error(Errors.Message.ASSIGN_OP);
-
+				return null;
 		}
 	}
 
@@ -496,32 +499,52 @@ public final class ParserImpl extends Parser {
 		}
 	}
 
-	private void Expr() {
-		if (sym == Token.Kind.minus)
+	private Operand Expr() {
+		boolean doNegate = false;
+
+		if (sym == Token.Kind.minus) {
 			scan();
-		Term();
+			doNegate = true;
+		}
+		Operand x = Term();
 		while (sym == Token.Kind.plus || sym == Token.Kind.minus) {
-			Addop();
-			Term();
+			code.load(x);
+			Code.OpCode code_ = Addop();
+			Operand y = Term();
+			code.load(y);
+			code.put(code_);
 		}
+		if (doNegate)
+			code.put(Code.OpCode.neg);
+
+		return x;
 	}
 
-	private void Term() {
-		Factor();
+	private Operand Term() {
+		Operand x = Factor();
 		while (sym == Token.Kind.times || sym == Token.Kind.slash || sym == Token.Kind.rem) {
-			Mulop();
-			Factor();
+			code.load(x);
+			Code.OpCode code_ = Mulop();
+			Operand y = Factor();
+			code.load(y);
+			if (x.type == Tab.intType && y.type == Tab.intType)
+				code.put(code_);
+			else
+				error(Errors.Message.INCOMP_TYPES);
 		}
+		return x;
 	}
 
-	private void Factor() {
+	private Operand Factor() {
+		Operand x = null;
 		switch (sym) {
 			case ident:
-				Designator();
+				x = Designator();
 				if (sym == Token.Kind.lpar)
 					ActPars();
 				break;
 			case number:
+				x = new Operand(t.val);
 				scan();
 				break;
 			case charConst:
@@ -544,49 +567,63 @@ public final class ParserImpl extends Parser {
 			default:
 				error(Errors.Message.INVALID_FACT);
 		}
-
+		return x;
 	}
 
-	private void Designator() {
+	private Operand Designator() {
 		check(Token.Kind.ident);
+		Operand x = new Operand(tab.find(t.str), this);
+
 		while (sym == Token.Kind.period || sym == Token.Kind.lbrack) {
 			if (sym == Token.Kind.period) {
 				scan();
+				code.load(x);
 				check(Token.Kind.ident);
+				Obj obj = tab.findField(t.str, x.type);
+				x.kind = Operand.Kind.Fld;
+				x.type = obj.type;
+				x.adr = obj.adr;
 			} else {
 				scan();
-				Expr();
+				code.load(x);
+				Operand y = Expr();
+				code.load(y);
+				x.kind = Operand.Kind.Elem;
+				x.type = x.type.elemType;
 				check(Token.Kind.rbrack);
 			}
 		}
+		return x;
 	}
 
-	private void Addop() {
+	private Code.OpCode Addop() {
 		switch (sym) {
 			case plus:
 				scan();
-				break;
+				return Code.OpCode.add;
 			case minus:
 				scan();
-				break;
+				return Code.OpCode.sub;
 			default:
 				error(Errors.Message.ADD_OP);
+				return null;
 		}
 	}
 
-	private void Mulop() {
+	private Code.OpCode Mulop() {
 		switch (sym) {
 			case times:
 				scan();
-				break;
+				return Code.OpCode.mul;
 			case slash:
 				scan();
-				break;
+				return Code.OpCode.div;
 			case rem:
 				scan();
-				break;
+				return Code.OpCode.rem;
 			default:
 				error(Errors.Message.MUL_OP);
+				return null;
 		}
 	}
 

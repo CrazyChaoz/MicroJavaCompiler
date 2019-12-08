@@ -4,6 +4,7 @@ import ssw.mj.Errors;
 import ssw.mj.Parser;
 import ssw.mj.symtab.Obj;
 import ssw.mj.symtab.Scope;
+import ssw.mj.symtab.Struct;
 import ssw.mj.symtab.Tab;
 
 
@@ -64,7 +65,7 @@ public final class TabImpl extends Tab {
 
 		noObj = new Obj(Obj.Kind.Var, "$noObj", noType);
 
-		curLevel=-1;
+		curLevel = -1;
 	}
 
 
@@ -77,6 +78,13 @@ public final class TabImpl extends Tab {
 		}
 	}
 
+
+	public Obj findField(String toFind, Struct whereToFind) {
+		if (whereToFind.fields.containsKey(toFind))
+			return whereToFind.fields.get(whereToFind);
+		return noObj;
+	}
+
 	public Obj insert(Obj.Kind kind, String name, StructImpl type) {
 
 		Obj obj = new Obj(kind, name, type);
@@ -84,10 +92,10 @@ public final class TabImpl extends Tab {
 			obj.adr = curScope.nVars();
 			obj.level = curLevel;
 		}
-		if(curScope.findLocal(name) == null) {
+		if (curScope.findLocal(name) == null) {
 			curScope.insert(obj);
 		} else {
-			parser.error(Errors.Message.DECL_NAME,name);
+			parser.error(Errors.Message.DECL_NAME, name);
 		}
 
 		return obj;
