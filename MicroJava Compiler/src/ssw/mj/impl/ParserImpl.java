@@ -325,16 +325,23 @@ public final class ParserImpl extends Parser {
 					case slashas:
 					case remas:
 						Code.OpCode code_ = SpecialAssignmentStuff();
+						if (!x.kind.equals(Operand.Kind.Local))
+							error(Errors.Message.NO_VAR);
+
 						code.load(x);
 						Operand y = Expr();
 						code.load(y);
 						code.put(code_);
+//						code.get
+						if (!y.type.assignableTo(x.type))
+							error(Errors.Message.INCOMP_TYPES);
 						code.assign(x, y);
 						break;
-
 					case assign:
 						scan();
 						Operand yass = Expr();
+						if (!yass.type.assignableTo(x.type))
+							error(Errors.Message.INCOMP_TYPES);
 						code.assign(x, yass);
 						break;
 					case lpar:
@@ -342,9 +349,15 @@ public final class ParserImpl extends Parser {
 						break;
 					case pplus:
 						scan();
+						code.load(x);
+						code.put(Code.OpCode.const_1);
+						code.put(Code.OpCode.add);
 						break;
 					case mminus:
 						scan();
+						code.load(x);
+						code.put(Code.OpCode.const_1);
+						code.put(Code.OpCode.sub);
 						break;
 					default:
 						error(Errors.Message.DESIGN_FOLLOW);
@@ -377,9 +390,15 @@ public final class ParserImpl extends Parser {
 			case compare_:
 				scan();
 				check(Token.Kind.lpar);
-				Expr();
+				Operand xcomp = Expr();
+				if (xcomp.type != Tab.intType) {
+					error(Errors.Message.NO_INT_OP);
+				}
 				check(Token.Kind.comma);
-				Expr();
+				Operand ycomp = Expr();
+				if (ycomp.type != Tab.intType) {
+					error(Errors.Message.NO_INT_OP);
+				}
 				check(Token.Kind.rpar);
 				Block();
 				Block();
@@ -506,12 +525,16 @@ public final class ParserImpl extends Parser {
 			scan();
 			doNegate = true;
 		}
+
+
 		Operand x = Term();
 		while (sym == Token.Kind.plus || sym == Token.Kind.minus) {
 			code.load(x);
 			Code.OpCode code_ = Addop();
 			Operand y = Term();
 			code.load(y);
+			if (x.type == Tab.intType && y.type == Tab.intType)
+				error(Errors.Message.NO_INT_OP);
 			code.put(code_);
 		}
 		if (doNegate)
@@ -548,6 +571,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				break;
 			case charConst:
+				x = new Operand(new Obj(Obj.Kind.Con, t.str, Tab.charType), this);
 				scan();
 				break;
 			case new_:
@@ -561,7 +585,7 @@ public final class ParserImpl extends Parser {
 				break;
 			case lpar:
 				scan();
-				Expr();
+				x = Expr();
 				check(Token.Kind.rpar);
 				break;
 			default:
@@ -572,10 +596,16 @@ public final class ParserImpl extends Parser {
 
 	private Operand Designator() {
 		check(Token.Kind.ident);
-		Operand x = new Operand(tab.find(t.str), this);
+		Obj o = tab.find(t.str);
+		Operand x = new Operand(o, this);
+		if (o == tab.noObj)
+			error(Errors.Message.NOT_FOUND, t.str);
+
 
 		while (sym == Token.Kind.period || sym == Token.Kind.lbrack) {
 			if (sym == Token.Kind.period) {
+				if (x.type.kind != Struct.Kind.Class)
+					error(Errors.Message.NO_CLASS_TYPE);
 				scan();
 				code.load(x);
 				check(Token.Kind.ident);
@@ -586,7 +616,11 @@ public final class ParserImpl extends Parser {
 			} else {
 				scan();
 				code.load(x);
+				if (x.type.kind != Struct.Kind.Arr)
+					error(Errors.Message.INCOMP_TYPES);
 				Operand y = Expr();
+				if (y.type != Tab.intType)
+					error(Errors.Message.ARRAY_INDEX);
 				code.load(y);
 				x.kind = Operand.Kind.Elem;
 				x.type = x.type.elemType;
