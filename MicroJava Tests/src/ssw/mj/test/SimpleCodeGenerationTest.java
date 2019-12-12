@@ -1,11 +1,10 @@
 package ssw.mj.test;
 
-import static ssw.mj.Errors.Message.*;
-
 import org.junit.Assert;
 import org.junit.Test;
-
 import ssw.mj.Errors.Message;
+
+import static ssw.mj.Errors.Message.*;
 
 /**
  * Test cases for the examples from the lab sessions 8 and 9.

@@ -196,7 +196,7 @@ public final class ParserImpl extends Parser {
 		while (sym == Token.Kind.ident) {
 			VarDecl();
 		}
-		if (t.kind != Token.Kind.semicolon) {
+		if (t.kind != Token.Kind.semicolon && tab.curScope.nVars()>0) {
 			recoverAfterMessedUpVarDecl();
 		}
 		if (tab.curScope.nVars() > MAX_FIELDS) {
@@ -605,20 +605,22 @@ public final class ParserImpl extends Parser {
 		while (sym == Token.Kind.period || sym == Token.Kind.lbrack) {
 			if (sym == Token.Kind.period) {
 				if (x.type.kind != Struct.Kind.Class)
-					error(Errors.Message.NO_CLASS_TYPE);
+					error(Errors.Message.NO_CLASS);
 				scan();
 				code.load(x);
 				check(Token.Kind.ident);
 				Obj obj = tab.findField(t.str, x.type);
+				if(obj==tab.noObj)
+					error(Errors.Message.NO_FIELD,t.str);
 				x.kind = Operand.Kind.Fld;
 				x.type = obj.type;
 				x.adr = obj.adr;
 			} else {
 				scan();
 				code.load(x);
-				if (x.type.kind != Struct.Kind.Arr)
-					error(Errors.Message.INCOMP_TYPES);
 				Operand y = Expr();
+				if (x.type.kind != Struct.Kind.Arr)
+					error(Errors.Message.NO_ARRAY);
 				if (y.type != Tab.intType)
 					error(Errors.Message.ARRAY_INDEX);
 				code.load(y);
