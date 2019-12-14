@@ -2,6 +2,7 @@ package ssw.mj.impl;
 
 import ssw.mj.Parser;
 import ssw.mj.codegen.Code;
+import ssw.mj.codegen.Label;
 import ssw.mj.codegen.Operand;
 import ssw.mj.symtab.Tab;
 
@@ -9,6 +10,8 @@ import static ssw.mj.Errors.Message.NO_VAL;
 import static ssw.mj.Errors.Message.NO_VAR;
 
 public final class CodeImpl extends Code {
+
+
 
 	public CodeImpl(Parser p) {
 		super(p);
@@ -89,11 +92,10 @@ public final class CodeImpl extends Code {
 		x.kind = Operand.Kind.Stack;
 	}
 
-	public void assign(Operand x, Operand y) {
-		load(y);
-		switch (x.kind) {
+	public void generalStoreOperations(Operand toStore) {
+		switch (toStore.kind) {
 			case Local:
-				switch (x.adr) {
+				switch (toStore.adr) {
 					case 0:
 						put(OpCode.store_0);
 						break;
@@ -108,20 +110,20 @@ public final class CodeImpl extends Code {
 						break;
 					default:
 						put(OpCode.store);
-						put(x.adr);
+						put(toStore.adr);
 						break;
 				}
 				break;
 			case Static:
 				put(OpCode.putstatic);
-				put2(x.adr);
+				put2(toStore.adr);
 				break;
 			case Fld:
 				put(OpCode.putfield);
-				put2(x.adr);
+				put2(toStore.adr);
 				break;
 			case Elem:
-				if (x.type == Tab.charType) {
+				if (toStore.type == Tab.charType) {
 					put(OpCode.bastore);
 				} else {
 					put(OpCode.astore);
@@ -130,5 +132,23 @@ public final class CodeImpl extends Code {
 			default:
 				parser.error(NO_VAR);
 		}
+	}
+
+	public void assign(Operand x, Operand y) {
+		load(y);
+		generalStoreOperations(x);
+	}
+
+
+
+	public void tJump (Operand x) {
+		put(OpCode.get(OpCode.jmp.ordinal()+x.op.ordinal()));
+		x.tLabel.putAdr();
+	}
+
+
+	public void fJump (Operand x) {
+		put(OpCode.get(OpCode.jmp.ordinal()+CompOp.invert(x.op).ordinal())); // jne, jeq, jge, jgt, ...
+		x.fLabel.putAdr();
 	}
 }

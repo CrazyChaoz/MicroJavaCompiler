@@ -5,7 +5,7 @@ import ssw.mj.symtab.Tab;
 
 public final class StructImpl extends Struct {
 
-	private StructImpl(Kind kind, StructImpl elemType) {
+	public StructImpl(Kind kind, StructImpl elemType) {
 		super(kind, elemType);
 	}
 
