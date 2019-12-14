@@ -81,7 +81,7 @@ public final class TabImpl extends Tab {
 
 	public Obj findField(String toFind, Struct whereToFind) {
 		if (whereToFind.fields.containsKey(toFind))
-			return whereToFind.fields.get(whereToFind);
+			return whereToFind.fields.get(toFind);
 		return noObj;
 	}
 

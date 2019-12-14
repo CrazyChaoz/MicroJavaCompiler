@@ -355,14 +355,12 @@ public final class ParserImpl extends Parser {
 					case slashas:
 					case remas:
 						Code.OpCode code_ = SpecialAssignmentStuff();
-						if (!x.kind.equals(Operand.Kind.Local))
+						if (!x.kind.equals(Operand.Kind.Local) && !x.kind.equals(Operand.Kind.Stack))
 							error(Errors.Message.NO_VAR);
 
-						code.load(x);
 						Operand y = Expr();
 						code.load(y);
 						code.put(code_);
-//						code.get
 						if (!y.type.assignableTo(x.type))
 							error(Errors.Message.NO_INT_OP);
 						code.assign(x, y);
@@ -375,14 +373,13 @@ public final class ParserImpl extends Parser {
 //							error(Errors.Message.INVALID_CALL);
 
 						if (!yass.type.assignableTo(x.type)) {
-							if (yass.type == Tab.intType || x.type == Tab.intType)
-								error(Errors.Message.NO_INT_OP);
-							else
-								error(Errors.Message.INCOMP_TYPES);
+//							if (x.type == Tab.intType)
+//								error(Errors.Message.NO_INT_OP);
+//							else
+							error(Errors.Message.INCOMP_TYPES);
+						} else {
+							code.assign(x, yass);
 						}
-
-
-						code.assign(x, yass);
 
 
 						break;
@@ -402,31 +399,71 @@ public final class ParserImpl extends Parser {
 								code.load(x);
 								code.put(Code.OpCode.const_1);
 								code.put(Code.OpCode.inc);
+								x.kind = Operand.Kind.Local;
+								code.generalStoreOperations(x);
 								break;
 							case Static://
 								code.load(x);
 								code.put(Code.OpCode.const_1);
 								code.put(Code.OpCode.add);
-
+								x.kind = Operand.Kind.Static;
+								code.generalStoreOperations(x);
 								break;
 							case Elem://arr
+								code.load(x);
+								code.put(Code.OpCode.const_1);
+								code.put(Code.OpCode.inc);
+								x.kind = Operand.Kind.Elem;
+								code.generalStoreOperations(x);
 								break;
 							case Fld://class
+								code.load(x);
+								code.put(Code.OpCode.const_1);
+								code.put(Code.OpCode.inc);
+								x.kind = Operand.Kind.Fld;
+								code.generalStoreOperations(x);
 								break;
 							default:
 								error(Errors.Message.NO_VAR);
 						}
 						scan();
-
-
 						break;
 					case mminus:
 						if (x.type != Tab.intType)
 							error(Errors.Message.NO_INT);
+						switch (x.kind) {
+							case Local:
+								code.load(x);
+								code.put(Code.OpCode.const_m1);
+								code.put(Code.OpCode.inc);
+								x.kind = Operand.Kind.Local;
+								code.generalStoreOperations(x);
+								break;
+							case Static://
+								code.load(x);
+								code.put(Code.OpCode.const_m1);
+								code.put(Code.OpCode.add);
+								x.kind = Operand.Kind.Static;
+								code.generalStoreOperations(x);
+								break;
+							case Elem://arr
+								code.load(x);
+								code.put(Code.OpCode.const_1);
+								code.put(Code.OpCode.inc);
+								x.kind = Operand.Kind.Elem;
+								code.generalStoreOperations(x);
+								break;
+							case Fld://class
+								code.load(x);
+								code.put(Code.OpCode.const_1);
+								code.put(Code.OpCode.inc);
+								x.kind = Operand.Kind.Fld;
+								code.generalStoreOperations(x);
+								break;
+							default:
+								error(Errors.Message.NO_VAR);
+						}
 						scan();
-						code.load(x);
-						code.put(Code.OpCode.const_1);
-						code.put(Code.OpCode.sub);
 						break;
 					default:
 						error(Errors.Message.DESIGN_FOLLOW);
@@ -656,20 +693,25 @@ public final class ParserImpl extends Parser {
 	}
 
 	private Operand Expr() {
-		boolean doNegate = false;
 
+		Operand x;
 		if (sym == Token.Kind.minus) {
 			scan();
-			doNegate = true;
+			x = Term();
+			if (x.type != Tab.intType)
+				error(Errors.Message.NO_INT_OP);
+			if (x.kind == Operand.Kind.Con)
+				x.val = -x.val;
+			else {
+				code.load(x);
+				code.put(Code.OpCode.neg);
+			}
+		} else {
+			x = Term();
 		}
-
-
-		Operand x = Term();
 
 		while (sym == Token.Kind.plus || sym == Token.Kind.minus) {
 			code.load(x);
-			if (doNegate)
-				code.put(Code.OpCode.neg);
 			Code.OpCode code_ = Addop();
 			Operand y = Term();
 			code.load(y);
@@ -737,15 +779,19 @@ public final class ParserImpl extends Parser {
 						error(Errors.Message.NO_TYPE);
 					scan();
 					x = Expr();
+					if (x.type != Tab.intType)
+						error(Errors.Message.ARRAY_SIZE);
 					check(Token.Kind.rbrack);
-					if (x.type != Tab.intType) error(Errors.Message.ARRAY_SIZE);
 					code.load(x);
 					code.put(Code.OpCode.newarray);
 					code.put(type == Tab.charType ? 0 : 1);
 					type = new StructImpl(Struct.Kind.Arr, type);
 				} else {
-					if (obj.kind != Obj.Kind.Type || type.kind != Struct.Kind.Class)
+					if (obj.kind != Obj.Kind.Type) {
+						error(Errors.Message.NO_TYPE);
+					} else if (type.kind != Struct.Kind.Class) {
 						error(Errors.Message.NO_CLASS_TYPE);
+					}
 					code.put(Code.OpCode.new_);
 					code.put2(type.fields.size());
 				}
@@ -776,15 +822,18 @@ public final class ParserImpl extends Parser {
 			if (sym == Token.Kind.period) {
 				if (x.type.kind != Struct.Kind.Class)
 					error(Errors.Message.NO_CLASS);
+
 				scan();
-				code.load(x);
-				check(Token.Kind.ident);
-				Obj obj = tab.findField(t.str, x.type);
-				if (obj == tab.noObj)
-					error(Errors.Message.NO_FIELD, t.str);
-				x.kind = Operand.Kind.Fld;
-				x.type = obj.type;
-				x.adr = obj.adr;
+				if (x.type.kind == Struct.Kind.Class) {
+					code.load(x);
+					check(Token.Kind.ident);
+					Obj fld = tab.findField(t.str, x.type);
+					if (fld == tab.noObj)
+						error(Errors.Message.NO_FIELD, t.str);
+					x.kind = Operand.Kind.Fld;
+					x.adr = fld.adr;
+					x.type = fld.type;
+				}
 			} else {
 				code.load(x);
 				scan();
