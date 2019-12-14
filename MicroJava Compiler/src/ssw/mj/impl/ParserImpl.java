@@ -369,19 +369,11 @@ public final class ParserImpl extends Parser {
 						scan();
 						Operand yass = Expr();
 
-//						if (yass.type == Tab.noType && yass.obj.kind == Obj.Kind.Meth)
-//							error(Errors.Message.INVALID_CALL);
-
 						if (!yass.type.assignableTo(x.type)) {
-//							if (x.type == Tab.intType)
-//								error(Errors.Message.NO_INT_OP);
-//							else
 							error(Errors.Message.INCOMP_TYPES);
 						} else {
 							code.assign(x, yass);
 						}
-
-
 						break;
 					case lpar:
 						ActPars(x);
@@ -396,11 +388,9 @@ public final class ParserImpl extends Parser {
 
 						switch (x.kind) {
 							case Local:
-								code.load(x);
-								code.put(Code.OpCode.const_1);
 								code.put(Code.OpCode.inc);
-								x.kind = Operand.Kind.Local;
-								code.generalStoreOperations(x);
+								code.put(x.adr);
+								code.put(1);
 								break;
 							case Static://
 								code.load(x);
@@ -412,14 +402,14 @@ public final class ParserImpl extends Parser {
 							case Elem://arr
 								code.load(x);
 								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.inc);
+								code.put(Code.OpCode.add);
 								x.kind = Operand.Kind.Elem;
 								code.generalStoreOperations(x);
 								break;
 							case Fld://class
 								code.load(x);
 								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.inc);
+								code.put(Code.OpCode.add);
 								x.kind = Operand.Kind.Fld;
 								code.generalStoreOperations(x);
 								break;
@@ -433,11 +423,9 @@ public final class ParserImpl extends Parser {
 							error(Errors.Message.NO_INT);
 						switch (x.kind) {
 							case Local:
-								code.load(x);
-								code.put(Code.OpCode.const_m1);
 								code.put(Code.OpCode.inc);
-								x.kind = Operand.Kind.Local;
-								code.generalStoreOperations(x);
+								code.put(x.adr);
+								code.put(-1);
 								break;
 							case Static://
 								code.load(x);
@@ -448,15 +436,15 @@ public final class ParserImpl extends Parser {
 								break;
 							case Elem://arr
 								code.load(x);
-								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.inc);
+								code.put(Code.OpCode.const_m1);
+								code.put(Code.OpCode.add);
 								x.kind = Operand.Kind.Elem;
 								code.generalStoreOperations(x);
 								break;
 							case Fld://class
 								code.load(x);
-								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.inc);
+								code.put(Code.OpCode.const_m1);
+								code.put(Code.OpCode.add);
 								x.kind = Operand.Kind.Fld;
 								code.generalStoreOperations(x);
 								break;
