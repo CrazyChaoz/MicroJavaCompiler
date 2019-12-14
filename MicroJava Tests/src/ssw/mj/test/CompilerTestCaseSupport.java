@@ -1,19 +1,9 @@
 package ssw.mj.test;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.StringTokenizer;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.Timeout;
-
 import ssw.mj.Errors;
 import ssw.mj.Interpreter;
 import ssw.mj.Token;
@@ -24,6 +14,15 @@ import ssw.mj.symtab.Obj;
 import ssw.mj.symtab.Scope;
 import ssw.mj.symtab.Struct;
 import ssw.mj.symtab.Tab;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.StringTokenizer;
 
 /**
  * Base class for test cases with utility methods used by all tests.
@@ -253,47 +252,47 @@ public abstract class CompilerTestCaseSupport {
 		sb.append(indent);
 
 		switch (obj.kind) {
-		case Con:
-			sb.append("Constant: ");
-			if (obj.type != null) {
-				dump(obj.type, sb, indent, false);
-			}
-			sb.append(" ").append(obj.name).append(" = ");
-			if (obj.type == Tab.charType) {
-				sb.append("'").append((char) obj.val).append("'");
-			} else {
-				sb.append(obj.val);
-			}
-			break;
-		case Var:
-			if (obj.level == 0) {
-				sb.append("Global Variable ");
-			} else {
-				sb.append("Local Variable ");
-			}
-			sb.append(obj.adr).append(": ");
-			if (obj.type != null) {
-				dump(obj.type, sb, indent, false);
-			}
-			sb.append(" ").append(obj.name);
-			break;
-		case Type:
-			sb.append("Type ").append(obj.name).append(": ");
-			if (obj.type != null) {
-				dump(obj.type, sb, indent + "  ", true);
-			}
-			break;
-		case Meth:
-			sb.append("Method: ");
-			if (obj.type != null) {
-				dump(obj.type, sb, indent, false);
-			}
-			sb.append(" ").append(obj.name).append("(").append(obj.nPars);
-			sb.append(")");
-			break;
-		case Prog:
-			sb.append("Program ").append(obj.name).append(":");
-			break;
+			case Con:
+				sb.append("Constant: ");
+				if (obj.type != null) {
+					dump(obj.type, sb, indent, false);
+				}
+				sb.append(" ").append(obj.name).append(" = ");
+				if (obj.type == Tab.charType) {
+					sb.append("'").append((char) obj.val).append("'");
+				} else {
+					sb.append(obj.val);
+				}
+				break;
+			case Var:
+				if (obj.level == 0) {
+					sb.append("Global Variable ");
+				} else {
+					sb.append("Local Variable ");
+				}
+				sb.append(obj.adr).append(": ");
+				if (obj.type != null) {
+					dump(obj.type, sb, indent, false);
+				}
+				sb.append(" ").append(obj.name);
+				break;
+			case Type:
+				sb.append("Type ").append(obj.name).append(": ");
+				if (obj.type != null) {
+					dump(obj.type, sb, indent + "  ", true);
+				}
+				break;
+			case Meth:
+				sb.append("Method: ");
+				if (obj.type != null) {
+					dump(obj.type, sb, indent, false);
+				}
+				sb.append(" ").append(obj.name).append("(").append(obj.nPars);
+				sb.append(")");
+				break;
+			case Prog:
+				sb.append("Program ").append(obj.name).append(":");
+				break;
 		}
 
 		if (obj.locals != null) {
@@ -305,28 +304,28 @@ public abstract class CompilerTestCaseSupport {
 
 	private static void dump(Struct struct, StringBuilder sb, String indent, boolean dumpFields) {
 		switch (struct.kind) {
-		case None:
-			sb.append("void");
-			break;
-		case Int:
-			sb.append("int");
-			break;
-		case Char:
-			sb.append("char");
-			break;
-		case Arr:
-			if (struct.elemType != null) {
-				dump(struct.elemType, sb, indent, dumpFields);
-			}
-			sb.append("[]");
-			break;
-		case Class:
-			sb.append("class(").append(struct.nrFields()).append(")");
-			if (dumpFields && struct.fields != null) {
-				sb.append("\n");
-				dump(struct.fields.values(), sb, indent);
-			}
-			break;
+			case None:
+				sb.append("void");
+				break;
+			case Int:
+				sb.append("int");
+				break;
+			case Char:
+				sb.append("char");
+				break;
+			case Arr:
+				if (struct.elemType != null) {
+					dump(struct.elemType, sb, indent, dumpFields);
+				}
+				sb.append("[]");
+				break;
+			case Class:
+				sb.append("class(").append(struct.nrFields()).append(")");
+				if (dumpFields && struct.fields != null) {
+					sb.append("\n");
+					dump(struct.fields.values(), sb, indent);
+				}
+				break;
 		}
 	}
 }

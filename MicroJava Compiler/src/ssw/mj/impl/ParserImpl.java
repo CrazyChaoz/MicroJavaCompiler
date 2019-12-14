@@ -11,6 +11,7 @@ import ssw.mj.symtab.Struct;
 import ssw.mj.symtab.Tab;
 
 import java.util.EnumSet;
+import java.util.Map;
 
 
 /**
@@ -21,6 +22,10 @@ import java.util.EnumSet;
  * <p>
  * Please feel free to tell me <EVERYTHING> that doesn't look liked it is supposed to be.
  */
+
+
+//TODO: FIX THE UGLY VARIABLE NAMES
+
 public final class ParserImpl extends Parser {
 
 	private int errDist = 3;
@@ -145,6 +150,11 @@ public final class ParserImpl extends Parser {
 		}
 
 		prog.locals = tab.curScope.locals();
+
+		Obj main = tab.find("main");
+		if (main == tab.noObj || main.kind != Obj.Kind.Meth)
+			error(Errors.Message.METH_NOT_FOUND, "main");
+
 		tab.closeScope();
 
 		check(Token.Kind.rbrace);
@@ -196,7 +206,7 @@ public final class ParserImpl extends Parser {
 		while (sym == Token.Kind.ident) {
 			VarDecl();
 		}
-		if (t.kind != Token.Kind.semicolon && tab.curScope.nVars()>0) {
+		if (t.kind != Token.Kind.semicolon && tab.curScope.nVars() > 0) {
 			recoverAfterMessedUpVarDecl();
 		}
 		if (tab.curScope.nVars() > MAX_FIELDS) {
@@ -232,6 +242,7 @@ public final class ParserImpl extends Parser {
 		if (sym == Token.Kind.ident) {
 			FormPars();
 		}
+
 		meth.nPars = tab.curScope.nVars();
 		check(Token.Kind.rpar);
 		if (meth.name.equals("main")) {
@@ -241,6 +252,7 @@ public final class ParserImpl extends Parser {
 			if (!meth.type.equals(Tab.noType)) {
 				error(Errors.Message.MAIN_NOT_VOID);
 			}
+			code.mainpc = code.pc;
 		}
 		while (sym == Token.Kind.ident) {
 			VarDecl();
@@ -250,9 +262,22 @@ public final class ParserImpl extends Parser {
 		if (tab.curScope.nVars() > MAX_LOCALS) {
 			error(Errors.Message.TOO_MANY_LOCALS);
 		}
+
+		code.put(Code.OpCode.enter);
+		code.put(meth.nPars);
+		code.put(tab.curScope.nVars());
+
 		meth.locals = tab.curScope.locals();
 		Block();
 
+
+		if (meth.type == Tab.noType) {
+			code.put(Code.OpCode.exit);
+			code.put(Code.OpCode.return_);
+		} else { // end of function reached without a return statement
+			code.put(Code.OpCode.trap);
+			code.put(1);
+		}
 		tab.closeScope();
 
 		return meth;
@@ -334,26 +359,59 @@ public final class ParserImpl extends Parser {
 						code.put(code_);
 //						code.get
 						if (!y.type.assignableTo(x.type))
-							error(Errors.Message.INCOMP_TYPES);
+							error(Errors.Message.NO_INT_OP);
 						code.assign(x, y);
 						break;
 					case assign:
 						scan();
 						Operand yass = Expr();
-						if (!yass.type.assignableTo(x.type))
-							error(Errors.Message.INCOMP_TYPES);
+
+//						if (yass.type == Tab.noType && yass.obj.kind == Obj.Kind.Meth)
+//							error(Errors.Message.INVALID_CALL);
+
+						if (!yass.type.assignableTo(x.type)) {
+							if (yass.type == Tab.intType || x.type == Tab.intType)
+								error(Errors.Message.NO_INT_OP);
+							else
+								error(Errors.Message.INCOMP_TYPES);
+						}
+
+
 						code.assign(x, yass);
+
+
 						break;
 					case lpar:
-						ActPars();
+						ActPars(x);
 						break;
 					case pplus:
+						if (x.type != Tab.intType)
+							error(Errors.Message.NO_INT);
 						scan();
-						code.load(x);
-						code.put(Code.OpCode.const_1);
-						code.put(Code.OpCode.add);
+
+						switch (x.kind) {
+							case Local:
+								code.load(x);
+								code.put(Code.OpCode.const_1);
+								code.put(Code.OpCode.inc);
+								break;
+							case Static://
+								code.load(x);
+								code.put(Code.OpCode.const_1);
+								code.put(Code.OpCode.add);
+
+								break;
+							case Elem://arr
+								break;
+							case Fld://class
+								break;
+						}
+
+
 						break;
 					case mminus:
+						if (x.type != Tab.intType)
+							error(Errors.Message.NO_INT);
 						scan();
 						code.load(x);
 						code.put(Code.OpCode.const_1);
@@ -406,24 +464,56 @@ public final class ParserImpl extends Parser {
 				break;
 			case return_:
 				scan();
-				if (checkExpr())
-					Expr();
+				if (checkExpr()) {
+					Operand ret = Expr();
+					code.load(ret);
+					code.put(Code.OpCode.return_);
+				}
+
 				check(Token.Kind.semicolon);
 				break;
 			case read:
 				scan();
 				check(Token.Kind.lpar);
-				Designator();
+				Operand y = Designator();
+				if (y.type != Tab.intType && y.type != Tab.charType)
+					error(Errors.Message.READ_VALUE);
+				code.put(Code.OpCode.read);
+				switch (y.type.kind) {
+					case Arr:
+						break;
+					case Class:
+						break;
+					case Char:
+						break;
+					case Int:
+						break;
+				}
 				check(Token.Kind.rpar);
 				break;
 			case print:
 				scan();
 				check(Token.Kind.lpar);
-				Expr();
+				Operand y1 = Expr();
+
+				if (y1.type != Tab.intType && y1.type != Tab.charType)
+					error(Errors.Message.PRINT_VALUE);
+
+
+				int length=0;
+
 				if (sym == Token.Kind.comma) {
 					scan();
 					check(Token.Kind.number);
+					length=Integer.parseInt(t.str);
 				}
+
+
+
+				code.load(y1);
+				code.load(new Operand(length));
+				code.put(Code.OpCode.print);
+
 				check(Token.Kind.rpar);
 				check(Token.Kind.semicolon);
 				break;
@@ -459,15 +549,41 @@ public final class ParserImpl extends Parser {
 		}
 	}
 
-	private void ActPars() {
+	private void ActPars(Operand m) {
+		Operand ap;
 		check(Token.Kind.lpar);
+		if (m.kind != Operand.Kind.Meth) {
+			error(Errors.Message.NO_METH);
+			m.obj = tab.noObj;
+		}
+		int aPars = 0;
+		int fPars = m.obj.nPars;
+
 		if (checkExpr()) {
-			Expr();
+			ap = Expr();
+			code.load(ap);
+			aPars++;
+
+			for (Map.Entry<String,Obj> tok: m.obj.locals.entrySet())
+				if (!ap.type.assignableTo(tok.getValue().type))
+					error(Errors.Message.INCOMP_TYPES);
+
+
 			while (sym == Token.Kind.comma) {
 				scan();
-				Expr();
+				ap = Expr();
+				code.load(ap);
+				aPars++;
+
+				for (Map.Entry<String,Obj> tok: m.obj.locals.entrySet())
+					if (!ap.type.assignableTo(tok.getValue().type))
+						error(Errors.Message.INCOMP_TYPES);
 			}
 		}
+		if (aPars > fPars)
+			error(Errors.Message.MORE_ACTUAL_PARAMS);
+		else if (aPars < fPars)
+			error(Errors.Message.LESS_ACTUAL_PARAMS);
 		check(Token.Kind.rpar);
 	}
 
@@ -533,7 +649,7 @@ public final class ParserImpl extends Parser {
 			Code.OpCode code_ = Addop();
 			Operand y = Term();
 			code.load(y);
-			if (x.type == Tab.intType && y.type == Tab.intType)
+			if (x.type != Tab.intType || y.type != Tab.intType)
 				error(Errors.Message.NO_INT_OP);
 			code.put(code_);
 		}
@@ -553,7 +669,7 @@ public final class ParserImpl extends Parser {
 			if (x.type == Tab.intType && y.type == Tab.intType)
 				code.put(code_);
 			else
-				error(Errors.Message.INCOMP_TYPES);
+				error(Errors.Message.NO_INT_OP);
 		}
 		return x;
 	}
@@ -564,14 +680,14 @@ public final class ParserImpl extends Parser {
 			case ident:
 				x = Designator();
 				if (sym == Token.Kind.lpar)
-					ActPars();
+					ActPars(x);
 				break;
 			case number:
-				x = new Operand(t.val);
+				x = new Operand(la.val);
 				scan();
 				break;
 			case charConst:
-				x = new Operand(new Obj(Obj.Kind.Con, t.str, Tab.charType), this);
+				x = new Operand(new Obj(Obj.Kind.Con, la.str, Tab.charType), this);
 				scan();
 				break;
 			case new_:
@@ -610,14 +726,14 @@ public final class ParserImpl extends Parser {
 				code.load(x);
 				check(Token.Kind.ident);
 				Obj obj = tab.findField(t.str, x.type);
-				if(obj==tab.noObj)
-					error(Errors.Message.NO_FIELD,t.str);
+				if (obj == tab.noObj)
+					error(Errors.Message.NO_FIELD, t.str);
 				x.kind = Operand.Kind.Fld;
 				x.type = obj.type;
 				x.adr = obj.adr;
 			} else {
-				scan();
 				code.load(x);
+				scan();
 				Operand y = Expr();
 				if (x.type.kind != Struct.Kind.Arr)
 					error(Errors.Message.NO_ARRAY);

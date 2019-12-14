@@ -6,10 +6,10 @@
 // edited by Albrecht Woess, 2002-10-30
 package ssw.mj;
 
-import java.io.IOException;
-
 import ssw.mj.codegen.Code;
 import ssw.mj.codegen.Code.OpCode;
+
+import java.io.IOException;
 
 public class Interpreter {
 
@@ -98,7 +98,7 @@ public class Interpreter {
 	private IO io;
 
 	public Interpreter(byte[] code, int startPC, int dataSize, IO io,
-			boolean debug) {
+	                   boolean debug) {
 		this.code = code;
 		this.startPC = startPC;
 		this.io = io;
@@ -174,7 +174,9 @@ public class Interpreter {
 		return n;
 	}
 
-	/** Allocate heap block of size bytes */
+	/**
+	 * Allocate heap block of size bytes
+	 */
 	private int alloc(int size) throws IllegalStateException {
 		int adr = free;
 		free += ((size + 3) >> 2); // skip to next free adr
@@ -185,12 +187,16 @@ public class Interpreter {
 		return adr;
 	}
 
-	/** Retrieve byte n from val. Byte 0 is MSB */
+	/**
+	 * Retrieve byte n from val. Byte 0 is MSB
+	 */
 	private static byte getByte(int val, int n) {
 		return (byte) (val << (8 * n) >>> 24);
 	}
 
-	/** Replace byte n in val by b */
+	/**
+	 * Replace byte n in val by b
+	 */
 	private static int setByte(int val, int n, byte b) {
 		int delta = (3 - n) * 8;
 		int mask = ~(255 << delta); // mask all 1 except on chosen byte
@@ -198,7 +204,9 @@ public class Interpreter {
 		return (val & mask) ^ by;
 	}
 
-	/** Read int from standard input stream */
+	/**
+	 * Read int from standard input stream
+	 */
 	private int readInt() {
 		int val = 0;
 		int prev = ' ';
@@ -244,7 +252,7 @@ public class Interpreter {
 			System.out.println("-----------------------------");
 		}
 
-		for (;;) { // terminated by return instruction
+		for (; ; ) { // terminated by return instruction
 			op = Code.OpCode.get(next(false));
 			if (debug) {
 				printInstr();
@@ -252,315 +260,315 @@ public class Interpreter {
 
 			switch (op) {
 
-			// load/store local variables
-			case load:
-				push(local[fp + next(true)]);
-				break;
-			case load_0:
-			case load_1:
-			case load_2:
-			case load_3:
-				push(local[fp + op.code() - Code.OpCode.load_0.code()]); // mapping
-																			// on
-																			// range
-																			// 0..3
-				break;
-			case store:
-				local[fp + next(true)] = pop();
-				break;
-			case store_0:
-			case store_1:
-			case store_2:
-			case store_3:
-				local[fp + op.code() - Code.OpCode.store_0.code()] = pop(); // mapping
-																			// on
-																			// range
-																			// 0..3
-				break;
-
-			// load/store global variables
-			case getstatic:
-				push(data[next2(true)]);
-				break;
-			case putstatic:
-				data[next2(true)] = pop();
-				break;
-
-			// load/store object fields
-			case getfield:
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				push(heap[adr + next2(true)]);
-				break;
-			case putfield:
-				val = pop();
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				heap[adr + next2(true)] = val;
-				break;
-
-			// load constants
-			case const_0:
-			case const_1:
-			case const_2:
-			case const_3:
-			case const_4:
-			case const_5:
-				push(op.code() - Code.OpCode.const_0.code()); // map opcode to
-																// 0..5
-				break;
-			case const_m1:
-				push(-1);
-				break;
-			case const_:
-				push(next4());
-				break;
-
-			// arithmetic operations
-			case add:
-				push(pop() + pop());
-				break;
-			case sub:
-				push(-pop() + pop());
-				break;
-			case mul:
-				push(pop() * pop());
-				break;
-			case div:
-				val = pop();
-				if (val == 0) {
-					throw new IllegalStateException("division by zero");
-				}
-				push(pop() / val);
-				break;
-			case rem:
-				val = pop();
-				if (val == 0) {
-					throw new IllegalStateException("division by zero");
-				}
-				push(pop() % val);
-				break;
-			case neg:
-				push(-pop());
-				break;
-			case shl:
-				val = pop();
-				push(pop() << val);
-				break;
-			case shr:
-				val = pop();
-				push(pop() >> val);
-				break;
-			case inc:
-				off = fp + next(true);
-				local[off] += next(true);
-				break;
-
-			// object creation
-			case new_:
-				push(alloc(next2(true) * 4));
-				break;
-			case newarray:
-				val = next(true);
-				len = pop();
-				if (val == 0) {
-					adr = alloc(len + 4);
-				} else {
-					adr = alloc(len * 4 + 4);
-				}
-				heap[adr] = len;
-				push(adr + 1); // skip length field of array
-				break;
-
-			// array access
-			case aload:
-				idx = pop();
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				len = heap[adr - 1];
-				if (idx < 0 || idx >= len) {
-					throw new IllegalStateException("index out of bounds");
-				}
-				push(heap[adr + idx]);
-				break;
-			case astore:
-				val = pop();
-				idx = pop();
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				len = heap[adr - 1];
-				if (debug) {
-					System.out.println("\nArraylength = " + len);
-					System.out.println("Address = " + adr);
-					System.out.println("Index = " + idx);
-					System.out.println("Value = " + val);
-				}
-				if (idx < 0 || idx >= len) {
-					throw new IllegalStateException("index out of bounds");
-				}
-				heap[adr + idx] = val;
-				break;
-			case baload:
-				idx = pop();
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				len = heap[adr - 1];
-				if (idx < 0 || idx >= len) {
-					throw new IllegalStateException("index out of bounds");
-				}
-				push(getByte(heap[adr + idx / 4], idx % 4));
-				break;
-			case bastore:
-				val = pop();
-				idx = pop();
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				len = heap[adr - 1];
-				if (idx < 0 || idx >= len) {
-					throw new IllegalStateException("index out of bounds");
-				}
-				heap[adr + idx / 4] = setByte(heap[adr + idx / 4], idx % 4,
-						(byte) val);
-				break;
-			case arraylength:
-				adr = pop();
-				if (adr == 0) {
-					throw new IllegalStateException("null reference used");
-				}
-				push(heap[adr - 1]);
-				break;
-
-			// stack manipulation
-			case pop:
-				pop();
-				break;
-			case dup:
-				val = pop();
-				push(val);
-				push(val);
-				break;
-			case dup2:
-				val = pop();
-				val2 = pop();
-				push(val2);
-				push(val);
-				push(val2);
-				push(val);
-				break;
-
-			// jumps
-			case jmp:
-				off = next2(true);
-				pc += off - 3;
-				break;
-
-			case jeq:
-			case jne:
-			case jlt:
-			case jle:
-			case jgt:
-			case jge:
-				off = next2(true);
-				val2 = pop();
-				val = pop();
-				boolean cond = false;
-				switch (op) {
-				case jeq:
-					cond = val == val2;
+				// load/store local variables
+				case load:
+					push(local[fp + next(true)]);
 					break;
-				case jne:
-					cond = val != val2;
+				case load_0:
+				case load_1:
+				case load_2:
+				case load_3:
+					push(local[fp + op.code() - Code.OpCode.load_0.code()]); // mapping
+					// on
+					// range
+					// 0..3
 					break;
-				case jlt:
-					cond = val < val2;
+				case store:
+					local[fp + next(true)] = pop();
 					break;
-				case jle:
-					cond = val <= val2;
+				case store_0:
+				case store_1:
+				case store_2:
+				case store_3:
+					local[fp + op.code() - Code.OpCode.store_0.code()] = pop(); // mapping
+					// on
+					// range
+					// 0..3
 					break;
-				case jgt:
-					cond = val > val2;
+
+				// load/store global variables
+				case getstatic:
+					push(data[next2(true)]);
 					break;
-				case jge:
-					cond = val >= val2;
+				case putstatic:
+					data[next2(true)] = pop();
 					break;
-				default:
-					assert false;
-				}
-				if (cond) {
+
+				// load/store object fields
+				case getfield:
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					push(heap[adr + next2(true)]);
+					break;
+				case putfield:
+					val = pop();
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					heap[adr + next2(true)] = val;
+					break;
+
+				// load constants
+				case const_0:
+				case const_1:
+				case const_2:
+				case const_3:
+				case const_4:
+				case const_5:
+					push(op.code() - Code.OpCode.const_0.code()); // map opcode to
+					// 0..5
+					break;
+				case const_m1:
+					push(-1);
+					break;
+				case const_:
+					push(next4());
+					break;
+
+				// arithmetic operations
+				case add:
+					push(pop() + pop());
+					break;
+				case sub:
+					push(-pop() + pop());
+					break;
+				case mul:
+					push(pop() * pop());
+					break;
+				case div:
+					val = pop();
+					if (val == 0) {
+						throw new IllegalStateException("division by zero");
+					}
+					push(pop() / val);
+					break;
+				case rem:
+					val = pop();
+					if (val == 0) {
+						throw new IllegalStateException("division by zero");
+					}
+					push(pop() % val);
+					break;
+				case neg:
+					push(-pop());
+					break;
+				case shl:
+					val = pop();
+					push(pop() << val);
+					break;
+				case shr:
+					val = pop();
+					push(pop() >> val);
+					break;
+				case inc:
+					off = fp + next(true);
+					local[off] += next(true);
+					break;
+
+				// object creation
+				case new_:
+					push(alloc(next2(true) * 4));
+					break;
+				case newarray:
+					val = next(true);
+					len = pop();
+					if (val == 0) {
+						adr = alloc(len + 4);
+					} else {
+						adr = alloc(len * 4 + 4);
+					}
+					heap[adr] = len;
+					push(adr + 1); // skip length field of array
+					break;
+
+				// array access
+				case aload:
+					idx = pop();
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					len = heap[adr - 1];
+					if (idx < 0 || idx >= len) {
+						throw new IllegalStateException("index out of bounds");
+					}
+					push(heap[adr + idx]);
+					break;
+				case astore:
+					val = pop();
+					idx = pop();
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					len = heap[adr - 1];
+					if (debug) {
+						System.out.println("\nArraylength = " + len);
+						System.out.println("Address = " + adr);
+						System.out.println("Index = " + idx);
+						System.out.println("Value = " + val);
+					}
+					if (idx < 0 || idx >= len) {
+						throw new IllegalStateException("index out of bounds");
+					}
+					heap[adr + idx] = val;
+					break;
+				case baload:
+					idx = pop();
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					len = heap[adr - 1];
+					if (idx < 0 || idx >= len) {
+						throw new IllegalStateException("index out of bounds");
+					}
+					push(getByte(heap[adr + idx / 4], idx % 4));
+					break;
+				case bastore:
+					val = pop();
+					idx = pop();
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					len = heap[adr - 1];
+					if (idx < 0 || idx >= len) {
+						throw new IllegalStateException("index out of bounds");
+					}
+					heap[adr + idx / 4] = setByte(heap[adr + idx / 4], idx % 4,
+							(byte) val);
+					break;
+				case arraylength:
+					adr = pop();
+					if (adr == 0) {
+						throw new IllegalStateException("null reference used");
+					}
+					push(heap[adr - 1]);
+					break;
+
+				// stack manipulation
+				case pop:
+					pop();
+					break;
+				case dup:
+					val = pop();
+					push(val);
+					push(val);
+					break;
+				case dup2:
+					val = pop();
+					val2 = pop();
+					push(val2);
+					push(val);
+					push(val2);
+					push(val);
+					break;
+
+				// jumps
+				case jmp:
+					off = next2(true);
 					pc += off - 3;
-				}
-				break;
+					break;
 
-			// method calls
-			case call:
-				off = next2(true);
-				PUSH(pc);
-				pc += off - 3;
-				break;
+				case jeq:
+				case jne:
+				case jlt:
+				case jle:
+				case jgt:
+				case jge:
+					off = next2(true);
+					val2 = pop();
+					val = pop();
+					boolean cond = false;
+					switch (op) {
+						case jeq:
+							cond = val == val2;
+							break;
+						case jne:
+							cond = val != val2;
+							break;
+						case jlt:
+							cond = val < val2;
+							break;
+						case jle:
+							cond = val <= val2;
+							break;
+						case jgt:
+							cond = val > val2;
+							break;
+						case jge:
+							cond = val >= val2;
+							break;
+						default:
+							assert false;
+					}
+					if (cond) {
+						pc += off - 3;
+					}
+					break;
 
-			case return_:
-				if (sp == 0) {
-					return;
-				}
-				pc = POP();
-				break;
-			case enter:
-				int psize = next(true);
-				int lsize = next(true);
-				PUSH(fp);
-				fp = sp;
-				for (i = 0; i < lsize; i++) {
-					PUSH(0);
-				}
-				assert sp == (fp + lsize);
-				for (i = psize - 1; i >= 0; i--) {
-					local[fp + i] = pop();
-				}
-				break;
-			case exit:
-				sp = fp;
-				fp = POP();
-				break;
+				// method calls
+				case call:
+					off = next2(true);
+					PUSH(pc);
+					pc += off - 3;
+					break;
 
-			// I/O
-			case read:
-				push(readInt());
-				break;
+				case return_:
+					if (sp == 0) {
+						return;
+					}
+					pc = POP();
+					break;
+				case enter:
+					int psize = next(true);
+					int lsize = next(true);
+					PUSH(fp);
+					fp = sp;
+					for (i = 0; i < lsize; i++) {
+						PUSH(0);
+					}
+					assert sp == (fp + lsize);
+					for (i = psize - 1; i >= 0; i--) {
+						local[fp + i] = pop();
+					}
+					break;
+				case exit:
+					sp = fp;
+					fp = POP();
+					break;
 
-			case print:
-				len = pop();
-				val = pop();
-				String s = new Integer(val).toString();
-				len = len - s.length();
-				write(s, len);
-				break;
-			case bread:
-				push(io.read());
-				break;
-			case bprint:
-				len = pop() - 1;
-				val = pop();
-				write(Character.toString((char) val), len);
-				break;
-			case nop:
-				// nothing to do
-				break;
-			case trap:
-				throw new IllegalStateException("trap(" + next(true) + ")");
-			default:
-				throw new IllegalStateException("wrong opcode " + op);
+				// I/O
+				case read:
+					push(readInt());
+					break;
+
+				case print:
+					len = pop();
+					val = pop();
+					String s = new Integer(val).toString();
+					len = len - s.length();
+					write(s, len);
+					break;
+				case bread:
+					push(io.read());
+					break;
+				case bprint:
+					len = pop() - 1;
+					val = pop();
+					write(Character.toString((char) val), len);
+					break;
+				case nop:
+					// nothing to do
+					break;
+				case trap:
+					throw new IllegalStateException("trap(" + next(true) + ")");
+				default:
+					throw new IllegalStateException("wrong opcode " + op);
 			}
 			if (debug) {
 				System.out.println();

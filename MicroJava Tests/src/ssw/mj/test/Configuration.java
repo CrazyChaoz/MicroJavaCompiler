@@ -16,13 +16,13 @@ public class Configuration {
 	 * This is a lot of output, some test cases might timeout, e.g.
 	 * CodeGenerationTest.fib
 	 */
-	public static final boolean PRINT_INTERPRETER_DEBUG_OUTPUT = Boolean.getBoolean("microjava.interpreterOutput");
+	public static final boolean PRINT_INTERPRETER_DEBUG_OUTPUT = true;//Boolean.getBoolean("microjava.interpreterOutput");
 
 	/**
 	 * Prints the decoded byte code before it executes the test case. Outside
 	 * the test cases this can be done with {@link Decoder}.
 	 */
-	public static final boolean PRINT_DECODED_BYTE_CODE = Boolean.getBoolean("microjava.decodeBytecode");
+	public static final boolean PRINT_DECODED_BYTE_CODE = true;//Boolean.getBoolean("microjava.decodeBytecode");
 
 	/**
 	 * Determines the timeout after which a test case should fail automatically.
@@ -31,6 +31,5 @@ public class Configuration {
 	 * <em>Attention</em>: For most computers it is likely that there is an
 	 * endless loop in the MicroJava compiler if a test fails for a timeout.
 	 */
-//	public static final long DEFAULT_TIMEOUT = Long.getLong("microjava.timeout", 1000 * 10);
-	public static final long DEFAULT_TIMEOUT = Long.getLong("microjava.timeout", 10000000);
+	public static final long DEFAULT_TIMEOUT =10000000;// Long.getLong("microjava.timeout", 1000 * 10);
 }
