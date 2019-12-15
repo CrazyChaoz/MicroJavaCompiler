@@ -131,6 +131,7 @@ public class SimpleCodeGenerationTest extends CompilerTestCaseSupport {
 		parseAndVerify();
 	}
 
+
 	@Test
 	public void bsp01() {
 		init("program A" + LF + //
@@ -723,8 +724,7 @@ public class SimpleCodeGenerationTest extends CompilerTestCaseSupport {
 				"    c[0].b.a.x[8]++;" + LF + //
 				"    c[3].b.a.x[2]++;" + LF + //
 				"    c[3].b.a.x[2]*=3;" + LF + //
-				"    c[0].b.a.x[8]+=50 + c[3].b.a.x[2] * c[3].b.a.x[2] * c[0].b.a.x[0];"
-				+ LF + //
+				"    c[0].b.a.x[8]+=50 + c[3].b.a.x[2] * c[3].b.a.x[2] * c[0].b.a.x[0];" + LF + //
 				"    print(c[0].b.a.x[8]);" + LF + //
 				"  }" + LF + //
 				"}");

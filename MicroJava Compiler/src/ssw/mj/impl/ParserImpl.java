@@ -355,15 +355,24 @@ public final class ParserImpl extends Parser {
 					case slashas:
 					case remas:
 						Code.OpCode code_ = SpecialAssignmentStuff();
-						if (!x.kind.equals(Operand.Kind.Local) && !x.kind.equals(Operand.Kind.Stack))
+						if (!x.kind.equals(Operand.Kind.Local) && !x.kind.equals(Operand.Kind.Stack) && !x.kind.equals(Operand.Kind.Elem) && !x.kind.equals(Operand.Kind.Fld))
 							error(Errors.Message.NO_VAR);
 
 						Operand y = Expr();
+
+						Operand.Kind rem=x.kind;
+
+						code.load(x);
 						code.load(y);
 						code.put(code_);
+
+
 						if (!y.type.assignableTo(x.type))
 							error(Errors.Message.NO_INT_OP);
-						code.assign(x, y);
+
+						x.kind=rem;
+//						code.generalStoreOperations(x);
+
 						break;
 					case assign:
 						scan();
@@ -400,6 +409,7 @@ public final class ParserImpl extends Parser {
 								code.generalStoreOperations(x);
 								break;
 							case Elem://arr
+								code.put(Code.OpCode.dup2);
 								code.load(x);
 								code.put(Code.OpCode.const_1);
 								code.put(Code.OpCode.add);
@@ -407,6 +417,8 @@ public final class ParserImpl extends Parser {
 								code.generalStoreOperations(x);
 								break;
 							case Fld://class
+								code.put(Code.OpCode.nop);
+								code.put(Code.OpCode.dup);
 								code.load(x);
 								code.put(Code.OpCode.const_1);
 								code.put(Code.OpCode.add);
@@ -421,6 +433,8 @@ public final class ParserImpl extends Parser {
 					case mminus:
 						if (x.type != Tab.intType)
 							error(Errors.Message.NO_INT);
+
+
 						switch (x.kind) {
 							case Local:
 								code.put(Code.OpCode.inc);
@@ -435,6 +449,7 @@ public final class ParserImpl extends Parser {
 								code.generalStoreOperations(x);
 								break;
 							case Elem://arr
+								code.put(Code.OpCode.dup2);
 								code.load(x);
 								code.put(Code.OpCode.const_m1);
 								code.put(Code.OpCode.add);
@@ -442,6 +457,7 @@ public final class ParserImpl extends Parser {
 								code.generalStoreOperations(x);
 								break;
 							case Fld://class
+								code.put(Code.OpCode.dup);
 								code.load(x);
 								code.put(Code.OpCode.const_m1);
 								code.put(Code.OpCode.add);
@@ -464,7 +480,6 @@ public final class ParserImpl extends Parser {
 				Condition();
 				check(Token.Kind.rpar);
 				Statement();
-
 				if (sym == Token.Kind.else_) {
 					scan();
 					Statement();
@@ -681,7 +696,6 @@ public final class ParserImpl extends Parser {
 	}
 
 	private Operand Expr() {
-
 		Operand x;
 		if (sym == Token.Kind.minus) {
 			scan();
@@ -732,10 +746,11 @@ public final class ParserImpl extends Parser {
 			case ident:
 				x = Designator();
 				if (sym == Token.Kind.lpar) {
-					ActPars(x);
 					if (x.type == Tab.noType) {
 						error(Errors.Message.INVALID_CALL);
 					}
+					ActPars(x);
+
 					if (x.obj == tab.ordObj || x.obj == tab.chrObj) ; // nothing
 					else if (x.obj == tab.lenObj) {
 						code.put(Code.OpCode.arraylength);
