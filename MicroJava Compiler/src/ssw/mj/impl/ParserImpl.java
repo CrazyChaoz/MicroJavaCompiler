@@ -84,7 +84,6 @@ public final class ParserImpl extends Parser {
 
 	private void recoverStat() {
 		error(Errors.Message.INVALID_STAT);
-
 		while ((!checkStatement() || sym == Token.Kind.ident) && sym != Token.Kind.rbrace && sym != Token.Kind.semicolon && sym != Token.Kind.eof) {
 			scan();
 		}
@@ -99,7 +98,7 @@ public final class ParserImpl extends Parser {
 	}
 
 	private void recoverAfterMessedUpVarDecl() {
-		while (t.kind != Token.Kind.semicolon && sym != Token.Kind.eof) {
+		while (sym != Token.Kind.lbrace && t.kind != Token.Kind.semicolon && sym != Token.Kind.eof && t.kind != Token.Kind.final_) {
 			scan();
 		}
 		errDist = 0;
@@ -121,12 +120,16 @@ public final class ParserImpl extends Parser {
 			switch (sym) {
 				case final_:
 					ConstDecl();
+					if (t.kind != Token.Kind.semicolon)
+						recoverAfterMessedUpVarDecl();
 					break;
 				case class_:
 					ClassDecl();
 					break;
 				case ident:
 					code.dataSize += VarDecl();
+					if (t.kind != Token.Kind.semicolon)
+						recoverAfterMessedUpVarDecl();
 					break;
 			}
 		}
@@ -188,15 +191,12 @@ public final class ParserImpl extends Parser {
 		StructImpl type = Type();
 		check(Token.Kind.ident);
 		tab.insert(Obj.Kind.Var, t.str, type);
-		int size =
-				type == Tab.charType ? 1 : type == Tab.intType ? 4 : 0;//TODO: wrong
+		int size = type == Tab.charType ? 1 : type == Tab.intType ? 4 : 0; //TODO: wrong?
 		while (sym == Token.Kind.comma) {
 			scan();
 			check(Token.Kind.ident);
 			tab.insert(Obj.Kind.Var, t.str, type);
-
-			size +=
-					type == Tab.charType ? 1 : type == Tab.intType ? 4 : 0;
+			size += type == Tab.charType ? 1 : type == Tab.intType ? 4 : 0;
 		}
 		check(Token.Kind.semicolon);
 		return size;
