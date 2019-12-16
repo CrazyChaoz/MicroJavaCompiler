@@ -355,23 +355,56 @@ public final class ParserImpl extends Parser {
 					case slashas:
 					case remas:
 						Code.OpCode code_ = SpecialAssignmentStuff();
-						if (!x.kind.equals(Operand.Kind.Local) && !x.kind.equals(Operand.Kind.Stack) && !x.kind.equals(Operand.Kind.Elem) && !x.kind.equals(Operand.Kind.Fld))
+						if (!x.kind.equals(Operand.Kind.Local) && !x.kind.equals(Operand.Kind.Stack) && !x.kind.equals(Operand.Kind.Static) && !x.kind.equals(Operand.Kind.Elem) && !x.kind.equals(Operand.Kind.Fld))
 							error(Errors.Message.NO_VAR);
 
+						switch (x.kind) {
+							case Elem://arr
+								code.put(Code.OpCode.dup2);
+								code.load(x);
+								x.kind = Operand.Kind.Elem;
+								break;
+							case Fld://class
+								code.put(Code.OpCode.dup);
+								code.load(x);
+								x.kind = Operand.Kind.Fld;
+								break;
+						}
+
 						Operand y = Expr();
-
-						Operand.Kind rem=x.kind;
-
-						code.load(x);
-						code.load(y);
-						code.put(code_);
-
-
 						if (!y.type.assignableTo(x.type))
 							error(Errors.Message.NO_INT_OP);
 
-						x.kind=rem;
-//						code.generalStoreOperations(x);
+
+						switch (x.kind) {
+							case Local:
+								code.load(x);
+								code.load(y);
+								code.put(code_);
+								x.kind = Operand.Kind.Local;
+								code.generalStoreOperations(x);
+								break;
+							case Static://
+								code.load(x);
+								code.load(y);
+								code.put(code_);
+								x.kind = Operand.Kind.Static;
+								code.generalStoreOperations(x);
+								break;
+							case Elem://arr
+								code.load(y);
+								code.put(code_);
+								x.kind = Operand.Kind.Elem;
+								code.generalStoreOperations(x);
+								break;
+							case Fld://class
+								code.load(y);
+								code.put(code_);
+								x.kind = Operand.Kind.Fld;
+								code.generalStoreOperations(x);
+								break;
+						}
+
 
 						break;
 					case assign:
@@ -609,10 +642,12 @@ public final class ParserImpl extends Parser {
 			code.load(ap);
 			aPars++;
 
-			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet())
-				if (!ap.type.assignableTo(tok.getValue().type))
-					error(Errors.Message.INCOMP_TYPES);
-
+			int i = 0;
+			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
+				if (i == aPars + 1)
+					if (!ap.type.assignableTo(tok.getValue().type))
+						error(Errors.Message.INCOMP_TYPES);
+			}
 
 			while (sym == Token.Kind.comma) {
 				scan();
@@ -620,9 +655,12 @@ public final class ParserImpl extends Parser {
 				code.load(ap);
 				aPars++;
 
-				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet())
-					if (!ap.type.assignableTo(tok.getValue().type))
-						error(Errors.Message.INCOMP_TYPES);
+				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
+
+					if (i == aPars + 1)
+						if (!ap.type.assignableTo(tok.getValue().type))
+							error(Errors.Message.INCOMP_TYPES);
+				}
 			}
 		}
 		if (aPars > fPars)
