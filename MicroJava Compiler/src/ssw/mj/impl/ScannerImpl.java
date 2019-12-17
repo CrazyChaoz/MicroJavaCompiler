@@ -3,9 +3,7 @@ package ssw.mj.impl;
 import ssw.mj.Scanner;
 import ssw.mj.Token;
 
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.Reader;
 
 import static ssw.mj.Errors.Message.*;
@@ -155,7 +153,7 @@ public final class ScannerImpl extends Scanner {
 			case EOF:
 				//#########
 				return new Token(eof, line, col - 1);
-				//#########
+			//#########
 
 			case '!':
 				nextCh();
@@ -392,7 +390,8 @@ public final class ScannerImpl extends Scanner {
 				missingQuoteHelper(t);
 		}
 	}
-	private void missingQuoteHelper(Token t){
+
+	private void missingQuoteHelper(Token t) {
 		nextCh();
 		if (ch != '\'') {
 			error(t, MISSING_QUOTE);

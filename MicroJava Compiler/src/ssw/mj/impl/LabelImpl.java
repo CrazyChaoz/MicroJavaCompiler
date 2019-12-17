@@ -9,7 +9,7 @@ public final class LabelImpl extends Label {
 
 	// TODO Exercise 6: Implementation of Labels for management of jump targets
 	private int adr;                // adr >= 0: address already defined
-	// adr < 0: label is undefinedt
+	// adr < 0: label is undefined
 	private ArrayList<Integer> fixupList;    // fixupaddresses
 
 	public LabelImpl(Code code) {
