@@ -97,19 +97,13 @@ public final class ParserImpl extends Parser {
 		errDist = 0;
 	}
 
-	private void recoverAfterMessedUpVarDecl() {
+	private void recoverAfterMessedUpDecl() {
 		while (sym != Token.Kind.lbrace && t.kind != Token.Kind.semicolon && sym != Token.Kind.eof && t.kind != Token.Kind.final_) {
 			scan();
 		}
 		errDist = 0;
 	}
 
-	private void recoverTillLBrace() {
-		while (sym != Token.Kind.lbrace && sym != Token.Kind.eof) {
-			scan();
-		}
-		errDist = 0;
-	}
 
 	private void MicroJava() {
 		check(Token.Kind.program);
@@ -121,7 +115,7 @@ public final class ParserImpl extends Parser {
 				case final_:
 					ConstDecl();
 					if (t.kind != Token.Kind.semicolon)
-						recoverAfterMessedUpVarDecl();
+						recoverAfterMessedUpDecl();
 					break;
 				case class_:
 					ClassDecl();
@@ -129,7 +123,7 @@ public final class ParserImpl extends Parser {
 				case ident:
 					code.dataSize += VarDecl();
 					if (t.kind != Token.Kind.semicolon)
-						recoverAfterMessedUpVarDecl();
+						recoverAfterMessedUpDecl();
 					break;
 			}
 		}
@@ -141,7 +135,7 @@ public final class ParserImpl extends Parser {
 
 		if (sym != Token.Kind.lbrace) {
 			error(Errors.Message.INVALID_DECL);
-			recoverTillLBrace();
+			recoverAfterMessedUpDecl();
 		}
 
 
@@ -191,12 +185,12 @@ public final class ParserImpl extends Parser {
 		StructImpl type = Type();
 		check(Token.Kind.ident);
 		tab.insert(Obj.Kind.Var, t.str, type);
-		int size = type == Tab.charType ? 1 : type == Tab.intType ? 4 : 0; //TODO: wrong?
+		int size = 1;
 		while (sym == Token.Kind.comma) {
 			scan();
 			check(Token.Kind.ident);
 			tab.insert(Obj.Kind.Var, t.str, type);
-			size += type == Tab.charType ? 1 : type == Tab.intType ? 4 : 0;
+			size += size;
 		}
 		check(Token.Kind.semicolon);
 		return size;
@@ -212,7 +206,7 @@ public final class ParserImpl extends Parser {
 			VarDecl();
 		}
 		if (t.kind != Token.Kind.semicolon && tab.curScope.nVars() > 0) {
-			recoverAfterMessedUpVarDecl();
+			recoverAfterMessedUpDecl();
 		}
 		if (tab.curScope.nVars() > MAX_FIELDS) {
 			error(Errors.Message.TOO_MANY_FIELDS);
@@ -262,7 +256,7 @@ public final class ParserImpl extends Parser {
 		while (sym == Token.Kind.ident) {
 			VarDecl();
 			if (t.kind != Token.Kind.semicolon)
-				recoverAfterMessedUpVarDecl();
+				recoverAfterMessedUpDecl();
 		}
 		if (tab.curScope.nVars() > MAX_LOCALS) {
 			error(Errors.Message.TOO_MANY_LOCALS);
