@@ -636,25 +636,31 @@ public final class ParserImpl extends Parser {
 			code.load(ap);
 			aPars++;
 
-			int i = 0;
-			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
-				if (i == aPars + 1)
-					if (!ap.type.assignableTo(tok.getValue().type))
-						error(Errors.Message.INCOMP_TYPES);
-			}
+//			int i;
+//
+//			//intended behaviour
+//			//as good as any other method
+//			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
+//				if (!ap.type.assignableTo(tok.getValue().type))
+//					error(Errors.Message.INCOMP_TYPES);
+//				break;
+//			}
 
 			while (sym == Token.Kind.comma) {
 				scan();
 				ap = Expr();
 				code.load(ap);
 				aPars++;
-
-				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
-
-					if (i == aPars + 1)
-						if (!ap.type.assignableTo(tok.getValue().type))
-							error(Errors.Message.INCOMP_TYPES);
-				}
+//				i=0;
+//
+//				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
+//					i++;
+//					if (i == aPars + 1){
+//						if (!ap.type.assignableTo(tok.getValue().type))
+//							error(Errors.Message.INCOMP_TYPES);
+//						break;
+//					}
+//				}
 			}
 		}
 		if (aPars > fPars)
