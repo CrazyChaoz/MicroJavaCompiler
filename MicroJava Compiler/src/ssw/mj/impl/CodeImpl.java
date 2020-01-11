@@ -137,6 +137,10 @@ public final class CodeImpl extends Code {
 		generalStoreOperations(x);
 	}
 
+	public void jump(LabelImpl lab) {
+		put(OpCode.jmp);
+		lab.putAdr();
+	}
 
 	public void tJump(Operand x) {
 		put(OpCode.get(OpCode.jmp.ordinal() + x.op.ordinal()));

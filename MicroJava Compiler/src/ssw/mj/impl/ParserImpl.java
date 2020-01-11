@@ -12,6 +12,7 @@ import ssw.mj.symtab.Tab;
 
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Stack;
 
 
 /**
@@ -33,6 +34,9 @@ public final class ParserImpl extends Parser {
 	private EnumSet<Token.Kind> exprSet = EnumSet.of(Token.Kind.minus, Token.Kind.ident, Token.Kind.number, Token.Kind.charConst, Token.Kind.new_, Token.Kind.lpar);
 	private EnumSet<Token.Kind> statementSet = EnumSet.of(Token.Kind.ident, Token.Kind.if_, Token.Kind.while_, Token.Kind.break_, Token.Kind.compare_, Token.Kind.return_, Token.Kind.read, Token.Kind.print, Token.Kind.lbrace, Token.Kind.semicolon);
 
+
+	private LabelImpl breakLab = null;
+	private Stack<LabelImpl> breaks = new Stack<>();
 
 	public ParserImpl(Scanner scanner) {
 		super(scanner);
@@ -503,24 +507,47 @@ public final class ParserImpl extends Parser {
 				break;
 			case if_:
 				scan();
+				LabelImpl end;
 				check(Token.Kind.lpar);
-				Condition();
+				Operand if_cond = Condition();
 				check(Token.Kind.rpar);
+				code.fJump(if_cond);
+				if_cond.tLabel.here();
 				Statement();
 				if (sym == Token.Kind.else_) {
 					scan();
+					end = new LabelImpl(code);
+					code.jump(end);
+					if_cond.fLabel.here();
 					Statement();
+					end.here();
+				} else {
+					if_cond.fLabel.here();
 				}
 				break;
 			case while_:
 				scan();
+				LabelImpl top = new LabelImpl(code);
+				top.here();
+				breaks.push(breakLab);
+				breakLab = new LabelImpl(code);
 				check(Token.Kind.lpar);
-				Operand cond = Condition();
+				Operand while_cond = Condition();
 				check(Token.Kind.rpar);
+				code.fJump(while_cond);
+				while_cond.tLabel.here();
 				Statement();
+				code.jump(top);
+				breakLab.here();
+				breakLab = breaks.pop();
+				while_cond.fLabel.here();
 				break;
 			case break_:
 				scan();
+				if (breakLab == null) {
+					error(Errors.Message.NO_LOOP);
+				}
+				code.jump(breakLab);
 				check(Token.Kind.semicolon);
 				break;
 			case compare_:
@@ -636,31 +663,31 @@ public final class ParserImpl extends Parser {
 			code.load(ap);
 			aPars++;
 
-//			int i;
-//
-//			//intended behaviour
-//			//as good as any other method
-//			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
-//				if (!ap.type.assignableTo(tok.getValue().type))
-//					error(Errors.Message.INCOMP_TYPES);
-//				break;
-//			}
+			int i;
+
+			//intended behaviour
+			//as good as any other method
+			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
+				if (!ap.type.assignableTo(tok.getValue().type) && !ap.type.equals(tok.getValue().type))
+					error(Errors.Message.PARAM_TYPE);
+				break;
+			}
 
 			while (sym == Token.Kind.comma) {
 				scan();
 				ap = Expr();
 				code.load(ap);
 				aPars++;
-//				i=0;
-//
-//				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
-//					i++;
-//					if (i == aPars + 1){
-//						if (!ap.type.assignableTo(tok.getValue().type))
-//							error(Errors.Message.INCOMP_TYPES);
-//						break;
-//					}
-//				}
+				i = 0;
+
+				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
+					i++;
+					if (i == aPars + 1) {
+						if (!ap.type.assignableTo(tok.getValue().type) && !ap.type.equals(tok.getValue().type))
+							error(Errors.Message.PARAM_TYPE);
+						break;
+					}
+				}
 			}
 		}
 		if (aPars > fPars)

@@ -8,7 +8,8 @@ import java.util.ArrayList;
 public final class LabelImpl extends Label {
 
 	// TODO Exercise 6: Implementation of Labels for management of jump targets
-	private int adr;                // adr >= 0: address already defined
+	private int adr;
+	// adr >= 0: address already defined
 	// adr < 0: label is undefined
 	private ArrayList<Integer> fixupList;    // fixupaddresses
 
@@ -25,6 +26,9 @@ public final class LabelImpl extends Label {
 	public void here() {
 		if (adr >= 0) {
 			System.err.println("label defined twice, this isn't cool, stop, seriously, stop, please");
+			System.err.println("seriously, stop");
+			System.err.println("god please make it stop");
+			System.err.println("[an internal error occurred]");
 		}
 		for (Integer pos : fixupList) {
 			code.put2(pos, code.pc - (pos - 1));
