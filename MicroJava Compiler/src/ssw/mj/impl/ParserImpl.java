@@ -38,10 +38,11 @@ public final class ParserImpl extends Parser {
 	private LabelImpl breakLab = null;
 	private Stack<LabelImpl> breaks = new Stack<>();
 
+	private Obj currMeth;
+
 	public ParserImpl(Scanner scanner) {
 		super(scanner);
 	}
-
 
 	@Override
 	public void parse() {
@@ -49,7 +50,6 @@ public final class ParserImpl extends Parser {
 		MicroJava();
 		check(Token.Kind.eof);
 	}
-
 
 	private void scan() {
 		t = la;
@@ -71,11 +71,9 @@ public final class ParserImpl extends Parser {
 		return exprSet.contains(sym);
 	}
 
-
 	private boolean checkStatement() {
 		return statementSet.contains(sym);
 	}
-
 
 	@Override
 	public void error(Errors.Message msg, Object... msgParams) {
@@ -84,7 +82,6 @@ public final class ParserImpl extends Parser {
 		}
 		errDist = 0;
 	}
-
 
 	private void recoverStat() {
 		error(Errors.Message.INVALID_STAT);
@@ -107,7 +104,6 @@ public final class ParserImpl extends Parser {
 		}
 		errDist = 0;
 	}
-
 
 	private void MicroJava() {
 		check(Token.Kind.program);
@@ -271,10 +267,13 @@ public final class ParserImpl extends Parser {
 		code.put(tab.curScope.nVars());
 
 		meth.locals = tab.curScope.locals();
+		currMeth = meth;
 		Block();
+		currMeth = null;
 
-
-		if (meth.type == Tab.noType) {
+		if (false) {
+			//already returned (?)
+		} else if (meth.type == Tab.noType) {
 			code.put(Code.OpCode.exit);
 			code.put(Code.OpCode.return_);
 		} else { // end of function reached without a return statement
@@ -573,7 +572,19 @@ public final class ParserImpl extends Parser {
 					Operand ret = Expr();
 					code.load(ret);
 					code.put(Code.OpCode.return_);
+
+					if (currMeth.type == Tab.noType)
+						error(Errors.Message.RETURN_VOID);
+					else if (!ret.type.assignableTo(currMeth.type)) {
+						error(Errors.Message.RETURN_TYPE);
+					}
+				} else {
+					if (currMeth.type != Tab.noType) {
+						error(Errors.Message.RETURN_NO_VAL);
+					}
 				}
+				code.put(Code.OpCode.exit);
+				code.put(Code.OpCode.return_);
 
 				check(Token.Kind.semicolon);
 				break;
