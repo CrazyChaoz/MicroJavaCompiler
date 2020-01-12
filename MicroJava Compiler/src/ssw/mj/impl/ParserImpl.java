@@ -5,6 +5,7 @@ import ssw.mj.Parser;
 import ssw.mj.Scanner;
 import ssw.mj.Token;
 import ssw.mj.codegen.Code;
+import ssw.mj.codegen.Label;
 import ssw.mj.codegen.Operand;
 import ssw.mj.symtab.Obj;
 import ssw.mj.symtab.Struct;
@@ -562,9 +563,37 @@ public final class ParserImpl extends Parser {
 					error(Errors.Message.NO_INT_OP);
 				}
 				check(Token.Kind.rpar);
-				Block();
-				Block();
-				Block();
+
+				code.load(xcomp);
+				code.load(ycomp);
+				code.load(xcomp);
+				code.load(ycomp);
+//				code.put(Code.OpCode.nop);
+//				code.put(Code.OpCode.nop);
+//				code.put(Code.OpCode.nop);
+//				code.put(Code.OpCode.nop);
+//				code.put(Code.OpCode.nop);
+//				code.put(Code.OpCode.dup2);
+
+				Operand equals=new Operand(Code.CompOp.eq, code);
+				Operand greaterThan=new Operand(Code.CompOp.gt, code);
+
+				code.tJump(equals);
+				code.tJump(greaterThan);
+
+				LabelImpl endOfCompare=new LabelImpl(code);
+
+				Block();    //smaller than
+				code.jump(endOfCompare);
+
+				equals.tLabel.here();
+				Block();    //equals
+				code.jump(endOfCompare);
+
+				greaterThan.tLabel.here();
+				Block();    //greater than
+				endOfCompare.here();
+
 				break;
 			case return_:
 				scan();
