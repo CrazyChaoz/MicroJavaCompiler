@@ -572,18 +572,12 @@ public final class ParserImpl extends Parser {
 				Operand greaterThan=new Operand(Code.CompOp.gt, code);
 
 				code.tJump(equals);
-				code.put(Code.OpCode.nop);
-				code.put(Code.OpCode.nop);
-
 				code.tJump(greaterThan);
-				code.put(Code.OpCode.nop);
-				code.put(Code.OpCode.nop);
 
 				LabelImpl endOfCompare=new LabelImpl(code);
 
 				Block();    //smaller than
 				code.jump(endOfCompare);
-				code.put(Code.OpCode.nop);
 
 				code.put(Code.OpCode.pop);
 				code.put(Code.OpCode.pop);
@@ -591,9 +585,6 @@ public final class ParserImpl extends Parser {
 				equals.tLabel.here();
 				Block();    //equals
 				code.jump(endOfCompare);
-				code.put(Code.OpCode.nop);
-
-				code.put(Code.OpCode.nop);
 
 				greaterThan.tLabel.here();
 				Block();    //greater than

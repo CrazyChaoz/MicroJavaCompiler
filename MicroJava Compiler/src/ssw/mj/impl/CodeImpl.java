@@ -140,12 +140,18 @@ public final class CodeImpl extends Code {
 	public void jump(LabelImpl lab) {
 		put(OpCode.jmp);
 		lab.putAdr();
+
+		put(Code.OpCode.nop);
+		put(Code.OpCode.nop);
 	}
 
 	public void tJump(Operand x) {
 		System.out.println(OpCode.get(OpCode.jeq.ordinal()+1 + x.op.ordinal()));
 		put(OpCode.get(OpCode.jeq.ordinal()+1 + x.op.ordinal()));
 		x.tLabel.putAdr();
+
+		put(Code.OpCode.nop);
+		put(Code.OpCode.nop);
 	}
 
 
@@ -153,5 +159,8 @@ public final class CodeImpl extends Code {
 
 		put(OpCode.get(OpCode.jeq.ordinal()+1 + CompOp.invert(x.op).ordinal())); // jne, jeq, jge, jgt, ...
 		x.fLabel.putAdr();
+
+		put(Code.OpCode.nop);
+		put(Code.OpCode.nop);
 	}
 }
