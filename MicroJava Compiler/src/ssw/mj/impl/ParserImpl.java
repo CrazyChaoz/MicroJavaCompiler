@@ -5,7 +5,6 @@ import ssw.mj.Parser;
 import ssw.mj.Scanner;
 import ssw.mj.Token;
 import ssw.mj.codegen.Code;
-import ssw.mj.codegen.Label;
 import ssw.mj.codegen.Operand;
 import ssw.mj.symtab.Obj;
 import ssw.mj.symtab.Struct;
@@ -568,13 +567,13 @@ public final class ParserImpl extends Parser {
 				code.load(ycomp);
 				code.put(Code.OpCode.dup2);
 
-				Operand equals=new Operand(Code.CompOp.eq, code);
-				Operand greaterThan=new Operand(Code.CompOp.gt, code);
+				Operand equals = new Operand(Code.CompOp.eq, code);
+				Operand greaterThan = new Operand(Code.CompOp.gt, code);
 
 				code.tJump(equals);
 				code.tJump(greaterThan);
 
-				LabelImpl endOfCompare=new LabelImpl(code);
+				LabelImpl endOfCompare = new LabelImpl(code);
 
 				Block();    //smaller than
 				code.jump(endOfCompare);
@@ -594,15 +593,17 @@ public final class ParserImpl extends Parser {
 			case return_:
 				scan();
 				if (checkExpr()) {
+					if (currMeth.type == Tab.noType) {
+						error(Errors.Message.RETURN_VOID);
+					}
 					Operand ret = Expr();
 					code.load(ret);
 					code.put(Code.OpCode.return_);
 
-					if (currMeth.type == Tab.noType)
-						error(Errors.Message.RETURN_VOID);
-					else if (!ret.type.assignableTo(currMeth.type)) {
+					if (!ret.type.assignableTo(currMeth.type)) {
 						error(Errors.Message.RETURN_TYPE);
 					}
+
 				} else {
 					if (currMeth.type != Tab.noType) {
 						error(Errors.Message.RETURN_NO_VAL);
@@ -694,6 +695,13 @@ public final class ParserImpl extends Parser {
 		int aPars = 0;
 		int fPars = m.obj.nPars;
 
+		Object[] asdf=m.obj.locals.values().toArray();
+
+
+		for (Object o : asdf) {
+			System.out.println(o);
+		}
+
 		if (checkExpr()) {
 			ap = Expr();
 			code.load(ap);
@@ -766,7 +774,7 @@ public final class ParserImpl extends Parser {
 		if (!x.type.compatibleWith(y.type))
 			error(Errors.Message.INCOMP_TYPES);
 		if (x.type.isRefType() && cmpOp != Code.CompOp.eq && cmpOp != Code.CompOp.ne)
-			error(Errors.Message.INCOMP_TYPES);
+			error(Errors.Message.EQ_CHECK);
 		return new Operand(cmpOp, code);
 	}
 
