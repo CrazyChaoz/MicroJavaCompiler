@@ -557,9 +557,10 @@ public final class ParserImpl extends Parser {
 				scan();
 				if (breakLab == null) {
 					error(Errors.Message.NO_LOOP);
+				}else{
+					code.jump(breakLab);
 				}
 				check(Token.Kind.semicolon);
-				code.jump(breakLab);
 				break;
 			case compare_:
 				scan();
