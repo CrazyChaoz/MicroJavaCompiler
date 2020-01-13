@@ -537,11 +537,6 @@ public final class ParserImpl extends Parser {
 
 				Statement();
 
-				code.put(Code.OpCode.nop);
-				code.put(Code.OpCode.nop);
-				code.put(Code.OpCode.nop);
-
-
 				code.jump(top);
 				top.fixupOfLoopJump();
 
@@ -611,8 +606,6 @@ public final class ParserImpl extends Parser {
 					}
 					Operand ret = Expr();
 					code.load(ret);
-					code.put(Code.OpCode.return_);
-
 					if (!ret.type.assignableTo(currMeth.type)) {
 						error(Errors.Message.RETURN_TYPE);
 					}

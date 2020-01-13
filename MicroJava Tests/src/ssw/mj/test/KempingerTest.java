@@ -160,6 +160,4 @@ public class KempingerTest extends CompilerTestCaseSupport {
 		addExpectedRun("1");
 		parseAndVerify();
 	}
-
-
 }
