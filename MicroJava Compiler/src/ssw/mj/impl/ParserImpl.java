@@ -11,7 +11,7 @@ import ssw.mj.symtab.Struct;
 import ssw.mj.symtab.Tab;
 
 import java.util.EnumSet;
-import java.util.Map;
+import java.util.Iterator;
 import java.util.Stack;
 
 
@@ -24,8 +24,6 @@ import java.util.Stack;
  * Please feel free to tell me <EVERYTHING> that doesn't look liked it is supposed to be.
  */
 
-
-//TODO: FIX THE UGLY VARIABLE NAMES
 
 public final class ParserImpl extends Parser {
 
@@ -528,6 +526,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				LabelImpl top = new LabelImpl(code);
 				top.here();
+
 				breaks.push(breakLab);
 				breakLab = new LabelImpl(code);
 				check(Token.Kind.lpar);
@@ -535,19 +534,32 @@ public final class ParserImpl extends Parser {
 				check(Token.Kind.rpar);
 				code.fJump(while_cond);
 				while_cond.tLabel.here();
+
 				Statement();
+
+				code.put(Code.OpCode.nop);
+				code.put(Code.OpCode.nop);
+				code.put(Code.OpCode.nop);
+
+
 				code.jump(top);
+				top.fixupOfLoopJump();
+
+
+				while_cond.fLabel.here();
+
 				breakLab.here();
 				breakLab = breaks.pop();
-				while_cond.fLabel.here();
+
+
 				break;
 			case break_:
 				scan();
 				if (breakLab == null) {
 					error(Errors.Message.NO_LOOP);
 				}
-				code.jump(breakLab);
 				check(Token.Kind.semicolon);
+				code.jump(breakLab);
 				break;
 			case compare_:
 				scan();
@@ -695,43 +707,30 @@ public final class ParserImpl extends Parser {
 		int aPars = 0;
 		int fPars = m.obj.nPars;
 
-		Object[] asdf=m.obj.locals.values().toArray();
-
-
-		for (Object o : asdf) {
-			System.out.println(o);
-		}
+		Iterator<Obj> params = m.obj.locals.values().iterator();
 
 		if (checkExpr()) {
 			ap = Expr();
 			code.load(ap);
 			aPars++;
 
-			int i;
+			Obj currParam = params.hasNext() ? params.next() : null;
 
-			//intended behaviour
-			//as good as any other method
-			for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
-				if (!ap.type.assignableTo(tok.getValue().type) && !ap.type.equals(tok.getValue().type))
-					error(Errors.Message.PARAM_TYPE);
-				break;
-			}
+			if ((currParam == null || !ap.type.assignableTo(currParam.type) && !ap.type.equals(currParam.type)))
+				error(Errors.Message.PARAM_TYPE);
 
 			while (sym == Token.Kind.comma) {
 				scan();
 				ap = Expr();
 				code.load(ap);
 				aPars++;
-				i = 0;
+				currParam = params.hasNext() ? params.next() : null;
 
-				for (Map.Entry<String, Obj> tok : m.obj.locals.entrySet()) {
-					i++;
-					if (i == aPars + 1) {
-						if (!ap.type.assignableTo(tok.getValue().type) && !ap.type.equals(tok.getValue().type))
-							error(Errors.Message.PARAM_TYPE);
-						break;
-					}
-				}
+				if (currParam == null)
+					break;
+
+				if (!ap.type.assignableTo(currParam.type) && !ap.type.equals(currParam.type))
+					error(Errors.Message.PARAM_TYPE);
 			}
 		}
 		if (aPars > fPars)
@@ -740,6 +739,7 @@ public final class ParserImpl extends Parser {
 			error(Errors.Message.LESS_ACTUAL_PARAMS);
 		check(Token.Kind.rpar);
 	}
+
 
 	private Operand Condition() {
 		Operand x = CondTerm();
