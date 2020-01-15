@@ -269,9 +269,7 @@ public final class ParserImpl extends Parser {
 		Block();
 		currMeth = null;
 
-		if (false) {
-			//already returned (?)
-		} else if (meth.type == Tab.noType) {
+		if (meth.type == Tab.noType) {
 			code.put(Code.OpCode.exit);
 			code.put(Code.OpCode.return_);
 		} else { // end of function reached without a return statement
@@ -349,8 +347,8 @@ public final class ParserImpl extends Parser {
 					case timesas:
 					case slashas:
 					case remas:
-						Code.OpCode code_ = SpecialAssignmentStuff();
-						if (!x.kind.equals(Operand.Kind.Local) && !x.kind.equals(Operand.Kind.Stack) && !x.kind.equals(Operand.Kind.Static) && !x.kind.equals(Operand.Kind.Elem) && !x.kind.equals(Operand.Kind.Fld))
+						Code.OpCode code_ = AssignOp();
+						if (x.kind != Operand.Kind.Local && x.kind != Operand.Kind.Stack && x.kind != Operand.Kind.Static && x.kind != Operand.Kind.Elem && x.kind != Operand.Kind.Fld)
 							error(Errors.Message.NO_VAR);
 
 						switch (x.kind) {
@@ -370,36 +368,32 @@ public final class ParserImpl extends Parser {
 						if (!y.type.assignableTo(x.type))
 							error(Errors.Message.NO_INT_OP);
 
-
 						switch (x.kind) {
 							case Local:
 								code.load(x);
 								code.load(y);
 								code.put(code_);
 								x.kind = Operand.Kind.Local;
-								code.generalStoreOperations(x);
 								break;
 							case Static://
 								code.load(x);
 								code.load(y);
 								code.put(code_);
 								x.kind = Operand.Kind.Static;
-								code.generalStoreOperations(x);
 								break;
 							case Elem://arr
 								code.load(y);
 								code.put(code_);
 								x.kind = Operand.Kind.Elem;
-								code.generalStoreOperations(x);
 								break;
 							case Fld://class
 								code.load(y);
 								code.put(code_);
 								x.kind = Operand.Kind.Fld;
-								code.generalStoreOperations(x);
 								break;
 						}
 
+						code.generalStoreOperations(x);
 
 						break;
 					case assign:
@@ -420,81 +414,11 @@ public final class ParserImpl extends Parser {
 							code.put(Code.OpCode.pop);
 						break;
 					case pplus:
-						if (x.type != Tab.intType)
-							error(Errors.Message.NO_INT);
-
-						switch (x.kind) {
-							case Local:
-								code.put(Code.OpCode.inc);
-								code.put(x.adr);
-								code.put(1);
-								break;
-							case Static://
-								code.load(x);
-								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.add);
-								x.kind = Operand.Kind.Static;
-								code.generalStoreOperations(x);
-								break;
-							case Elem://arr
-								code.put(Code.OpCode.dup2);
-								code.load(x);
-								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.add);
-								x.kind = Operand.Kind.Elem;
-								code.generalStoreOperations(x);
-								break;
-							case Fld://class
-								code.put(Code.OpCode.nop);
-								code.put(Code.OpCode.dup);
-								code.load(x);
-								code.put(Code.OpCode.const_1);
-								code.put(Code.OpCode.add);
-								x.kind = Operand.Kind.Fld;
-								code.generalStoreOperations(x);
-								break;
-							default:
-								error(Errors.Message.NO_VAR);
-						}
+						incr(x, true);
 						scan();
 						break;
 					case mminus:
-						if (x.type != Tab.intType)
-							error(Errors.Message.NO_INT);
-
-
-						switch (x.kind) {
-							case Local:
-								code.put(Code.OpCode.inc);
-								code.put(x.adr);
-								code.put(-1);
-								break;
-							case Static://
-								code.load(x);
-								code.put(Code.OpCode.const_m1);
-								code.put(Code.OpCode.add);
-								x.kind = Operand.Kind.Static;
-								code.generalStoreOperations(x);
-								break;
-							case Elem://arr
-								code.put(Code.OpCode.dup2);
-								code.load(x);
-								code.put(Code.OpCode.const_m1);
-								code.put(Code.OpCode.add);
-								x.kind = Operand.Kind.Elem;
-								code.generalStoreOperations(x);
-								break;
-							case Fld://class
-								code.put(Code.OpCode.dup);
-								code.load(x);
-								code.put(Code.OpCode.const_m1);
-								code.put(Code.OpCode.add);
-								x.kind = Operand.Kind.Fld;
-								code.generalStoreOperations(x);
-								break;
-							default:
-								error(Errors.Message.NO_VAR);
-						}
+						incr(x, false);
 						scan();
 						break;
 					default:
@@ -552,7 +476,7 @@ public final class ParserImpl extends Parser {
 				scan();
 				if (breakLab == null) {
 					error(Errors.Message.NO_LOOP);
-				}else{
+				} else {
 					code.jump(breakLab);
 				}
 				check(Token.Kind.semicolon);
@@ -668,7 +592,46 @@ public final class ParserImpl extends Parser {
 		}
 	}
 
-	private Code.OpCode SpecialAssignmentStuff() {
+	private void incr(Operand x, boolean positive) {
+		if (x.type != Tab.intType)
+			error(Errors.Message.NO_INT);
+
+		switch (x.kind) {
+			case Local:
+				code.put(Code.OpCode.inc);
+				code.put(x.adr);
+				code.put(positive ? 1 : -1);
+				break;
+			case Static://
+				code.load(x);
+				code.put(positive ? Code.OpCode.const_1 : Code.OpCode.const_m1);
+				code.put(Code.OpCode.add);
+				x.kind = Operand.Kind.Static;
+				code.generalStoreOperations(x);
+				break;
+			case Elem://arr
+				code.put(Code.OpCode.dup2);
+				code.load(x);
+				code.put(positive ? Code.OpCode.const_1 : Code.OpCode.const_m1);
+				code.put(Code.OpCode.add);
+				x.kind = Operand.Kind.Elem;
+				code.generalStoreOperations(x);
+				break;
+			case Fld://class
+				code.put(Code.OpCode.nop);
+				code.put(Code.OpCode.dup);
+				code.load(x);
+				code.put(positive ? Code.OpCode.const_1 : Code.OpCode.const_m1);
+				code.put(Code.OpCode.add);
+				x.kind = Operand.Kind.Fld;
+				code.generalStoreOperations(x);
+				break;
+			default:
+				error(Errors.Message.NO_VAR);
+		}
+	}
+
+	private Code.OpCode AssignOp() {
 		switch (sym) {
 			case plusas:
 				scan();

@@ -141,8 +141,8 @@ public final class CodeImpl extends Code {
 		put(OpCode.jmp);
 		lab.putAdr();
 
-		put(Code.OpCode.nop);
-		put(Code.OpCode.nop);
+		put(Code.OpCode.nop);           //please explain to me
+		put(Code.OpCode.nop);           //why does OpCode.jmp swallow the next two operations ?
 	}
 
 	public void tJump(Operand x) {
@@ -155,7 +155,6 @@ public final class CodeImpl extends Code {
 
 
 	public void fJump(Operand x) {
-
 		put(OpCode.get(OpCode.jeq.ordinal() + 1 + CompOp.invert(x.op).ordinal())); // jne, jeq, jge, jgt, ...
 		x.fLabel.putAdr();
 

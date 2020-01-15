@@ -36,9 +36,9 @@ public final class LabelImpl extends Label {
 		adr = code.pc;
 	}
 
-	public void fixupOfLoopJump(){
+	public void fixupOfLoopJump() {
 		for (Integer pos : fixupList) {
-			code.put2(pos, adr+3 - code.pc );
+			code.put2(pos, adr + 3 - code.pc);
 		}
 	}
 }
